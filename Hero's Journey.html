@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Monomyth Wheel - Interactive Hero's Journey</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Crimson Pro', serif;
+            background-color: #f4e4bc;
+            color: #4a3728;
+        }
+        .parchment-bg {
+            background-color: #e8d5a6;
+        }
+        .border-sepia {
+            border-color: #8b5a2b;
+        }
+        .text-sepia {
+            color: #8b5a2b;
+        }
+        .bg-sepia {
+            background-color: #8b5a2b;
+        }
+        .node {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .node:hover circle {
+            fill: #a67c52;
+        }
+        .node.active circle {
+            fill: #8b5a2b;
+            r: 22;
+        }
+        .node.active text {
+            fill: white;
+        }
+        .custom-shadow {
+            box-shadow: 0 20px 25px -5px rgba(139, 90, 43, 0.2), 0 10px 10px -5px rgba(139, 90, 43, 0.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold mb-2 uppercase tracking-widest border-b-2 border-sepia inline-block pb-2">
+                The Monomyth Wheel
+            </h1>
+            <p class="text-lg italic mt-4">Joseph Campbell's Hero's Journey: 12 Stages of Transformation</p>
+        </header>
+
+        <div class="grid lg:grid-cols-2 gap-12 items-center">
+            <!-- Circular UI -->
+            <div class="relative flex justify-center items-center select-none">
+                <svg viewBox="0 0 400 400" id="wheel-svg" class="w-full max-w-[450px] drop-shadow-2xl">
+                    <!-- Outer Parchment Circle -->
+                    <circle cx="200" cy="200" r="190" fill="#e8d5a6" stroke="#8b5a2b" stroke-width="2" />
+                    <circle cx="200" cy="200" r="185" fill="none" stroke="#8b5a2b" stroke-width="1" stroke-dasharray="5,5" />
+
+                    <!-- Lines and Nodes will be injected here -->
+                    <g id="lines-container"></g>
+                    <g id="nodes-container"></g>
+
+                    <!-- Center Informational Area -->
+                    <circle cx="200" cy="200" r="80" fill="#f4e4bc" stroke="#8b5a2b" stroke-width="3" />
+                    <foreignObject x="130" y="130" width="140" height="140">
+                        <div class="flex flex-col items-center justify-center h-full text-center px-2">
+                            <span id="center-stage-id" class="text-[10px] uppercase tracking-tighter text-sepia font-bold">Stage 1</span>
+                            <div id="center-stage-name" class="text-sm font-bold leading-tight mt-1">Ordinary World</div>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5a2b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-2 opacity-50"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                        </div>
+                    </foreignObject>
+                </svg>
+            </div>
+
+            <!-- Content Details -->
+            <div class="parchment-bg border-2 border-sepia p-6 rounded-sm custom-shadow relative overflow-hidden">
+                <!-- Decorative Corners -->
+                <div class="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-sepia"></div>
+                <div class="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-sepia"></div>
+                <div class="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-sepia"></div>
+                <div class="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-sepia"></div>
+
+                <div class="mb-6 pb-4 border-b border-sepia/30">
+                    <h2 class="text-2xl font-bold flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8b5a2b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+                        <span id="detail-title">Ordinary World</span>
+                    </h2>
+                    <p id="detail-definition" class="mt-3 text-lg leading-relaxed italic opacity-90">
+                        "The hero's starting point, where they feel out of place or unaware of their potential."
+                    </p>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-6">
+                    <!-- The Odyssey Section -->
+                    <div class="space-y-3 bg-[#f4e4bc]/50 p-4 rounded border border-sepia/20">
+                        <div class="flex items-center gap-2 font-bold text-sepia uppercase text-sm tracking-wider">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                            The Odyssey
+                        </div>
+                        <p id="odyssey-text" class="text-sm leading-relaxed">
+                            Odysseus is the King of Ithaca, living a life of domesticity after the Trojan War (or pre-war).
+                        </p>
+                    </div>
+
+                    <!-- The Hobbit Section -->
+                    <div class="space-y-3 bg-[#f4e4bc]/50 p-4 rounded border border-sepia/20">
+                        <div class="flex items-center gap-2 font-bold text-sepia uppercase text-sm tracking-wider">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" y1="19" x2="19" y2="13"/><line x1="16" y1="16" x2="20" y2="20"/><line x1="19" y1="21" x2="21" y2="19"/></svg>
+                            The Hobbit
+                        </div>
+                        <p id="hobbit-text" class="text-sm leading-relaxed">
+                            Bilbo Baggins lives in the comfortable, predictable Shire, uninterested in adventures.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="mt-8 flex justify-between items-center text-xs italic text-sepia/70">
+                    <span>Click any numbered node on the map to navigate.</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-40"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
+                </div>
+            </div>
+        </div>
+
+        <div id="button-nav" class="mt-12 flex flex-wrap justify-center gap-2 pb-4">
+            <!-- Buttons injected here -->
+        </div>
+    </div>
+
+    <script>
+        const STAGES = [
+            { id: 1, name: "Ordinary World", angle: 0, definition: "The hero's starting point, where they feel out of place or unaware of their potential.", odyssey: "Odysseus is the King of Ithaca, living a life of domesticity after the Trojan War (or pre-war).", hobbit: "Bilbo Baggins lives in the comfortable, predictable Shire, uninterested in adventures." },
+            { id: 2, name: "Call to Adventure", angle: 30, definition: "A challenge or request that disrupts the hero's ordinary life.", odyssey: "Odysseus is summoned to join the Greek expedition to Troy to rescue Helen.", hobbit: "Gandalf arrives at Bag End and marks Bilbo's door, followed by the arrival of the Dwarves." },
+            { id: 3, name: "Refusal of the Call", angle: 60, definition: "The hero hesitates or expresses fear, preferring the safety of home.", odyssey: "Odysseus feigns madness by sowing his fields with salt to avoid leaving his newborn son.", hobbit: "Bilbo flatly refuses the job of 'burglar' and tries to go back to his tea and maps." },
+            { id: 4, name: "Meeting the Mentor", angle: 90, definition: "A wise figure provides guidance, training, or magical items.", odyssey: "Athena frequently appears to guide Odysseus (and Telemachus) in various disguises.", hobbit: "Gandalf provides the map, the key, and the push needed to get Bilbo out the door." },
+            { id: 5, name: "Crossing the Threshold", angle: 120, definition: "The hero commits to the journey and enters the unknown Special World.", odyssey: "The Greek ships set sail for Troy, leaving the safety of the known Greek islands.", hobbit: "Bilbo runs out of his house without a pocket handkerchief to catch up with the Dwarves." },
+            { id: 6, name: "Tests, Allies, Enemies", angle: 150, definition: "The hero faces obstacles, meets companions, and identifies antagonists.", odyssey: "Encounters with the Cicones, Lotus Eaters, and the initial loss of crew members.", hobbit: "The encounter with the Trolls (William, Bert, and Tom) and meeting Elrond in Rivendell." },
+            { id: 7, name: "Approach to Inmost Cave", angle: 180, definition: "Preparation for the main ordeal; the hero draws closer to the heart of the journey.", odyssey: "Odysseus prepares to face the Cyclops or travels to the Land of the Dead.", hobbit: "The party enters the Misty Mountains and is captured by Goblins." },
+            { id: 8, name: "The Ordeal", angle: 210, definition: "A central life-or-death crisis where the hero faces their greatest fear.", odyssey: "The battle of wits with Polyphemus the Cyclops or surviving the Underworld.", hobbit: "The 'Riddles in the Dark' with Gollum and Bilbo's narrow escape from the Goblins." },
+            { id: 9, name: "Reward", angle: 240, definition: "The hero gains a prize—knowledge, a weapon, or an object of power.", odyssey: "Odysseus receives the bag of winds from Aeolus or the advice of Tiresias.", hobbit: "Bilbo finds the One Ring and discovers his own inner courage and resourcefulness." },
+            { id: 10, name: "The Road Back", angle: 270, definition: "The hero must deal with the consequences of the ordeal and head toward home.", odyssey: "The long, perilous journey home involving Scylla, Charybdis, and Calypso.", hobbit: "The journey toward the Lonely Mountain and the eventual Battle of the Five Armies." },
+            { id: 11, name: "Resurrection", angle: 300, definition: "A final test where the hero is transformed and ready to reclaim their life.", odyssey: "The slaughter of the suitors in Ithaca, proving his worth as king and husband.", hobbit: "Bilbo returns to the Shire only to find his home being auctioned off; he reclaims it." },
+            { id: 12, name: "Return with Elixir", angle: 330, definition: "The hero returns home changed, bringing something to benefit their community.", odyssey: "Peace is restored to Ithaca; Odysseus is reunited with Penelope and Laertes.", hobbit: "Bilbo returns with gold and stories, but more importantly, a newfound spirit of adventure." }
+        ];
+
+        let activeStageId = 1;
+        const radius = 160;
+        const centerX = 200;
+        const centerY = 200;
+
+        function updateUI(stageId) {
+            activeStageId = stageId;
+            const stage = STAGES.find(s => s.id === stageId);
+
+            // Update content
+            document.getElementById('center-stage-id').textContent = `Stage ${stage.id}`;
+            document.getElementById('center-stage-name').textContent = stage.name;
+            document.getElementById('detail-title').textContent = stage.name;
+            document.getElementById('detail-definition').textContent = `"${stage.definition}"`;
+            document.getElementById('odyssey-text').textContent = stage.odyssey;
+            document.getElementById('hobbit-text').textContent = stage.hobbit;
+
+            // Update nodes
+            document.querySelectorAll('.node').forEach(node => {
+                const id = parseInt(node.getAttribute('data-id'));
+                if (id === stageId) {
+                    node.classList.add('active');
+                } else {
+                    node.classList.remove('active');
+                }
+            });
+
+            // Update bottom buttons
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                const id = parseInt(btn.getAttribute('data-id'));
+                if (id === stageId) {
+                    btn.classList.add('bg-sepia', 'text-white');
+                    btn.classList.remove('text-sepia');
+                } else {
+                    btn.classList.remove('bg-sepia', 'text-white');
+                    btn.classList.add('text-sepia');
+                }
+            });
+        }
+
+        function init() {
+            const linesContainer = document.getElementById('lines-container');
+            const nodesContainer = document.getElementById('nodes-container');
+            const btnNav = document.getElementById('button-nav');
+
+            STAGES.forEach(stage => {
+                const radAngle = (stage.angle - 90) * (Math.PI / 180);
+                const x = centerX + radius * Math.cos(radAngle);
+                const y = centerY + radius * Math.sin(radAngle);
+
+                // Add connecting lines
+                const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                line.setAttribute("x1", "200");
+                line.setAttribute("y1", "200");
+                line.setAttribute("x2", x);
+                line.setAttribute("y2", y);
+                line.setAttribute("stroke", "#8b5a2b");
+                line.setAttribute("stroke-width", "0.5");
+                line.setAttribute("opacity", "0.3");
+                linesContainer.appendChild(line);
+
+                // Add nodes
+                const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                g.setAttribute("class", `node ${stage.id === 1 ? 'active' : ''}`);
+                g.setAttribute("data-id", stage.id);
+                g.onclick = () => updateUI(stage.id);
+
+                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                circle.setAttribute("cx", x);
+                circle.setAttribute("cy", y);
+                circle.setAttribute("r", stage.id === 1 ? "22" : "18");
+                circle.setAttribute("fill", "#d4b483");
+                circle.setAttribute("stroke", "#4a3728");
+                circle.setAttribute("stroke-width", "1");
+
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", x);
+                text.setAttribute("y", y + 5);
+                text.setAttribute("text-anchor", "middle");
+                text.setAttribute("font-size", "12");
+                text.setAttribute("font-weight", "bold");
+                text.setAttribute("fill", "#4a3728");
+                text.textContent = stage.id;
+
+                const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                label.setAttribute("x", x);
+                label.setAttribute("y", y - 25);
+                label.setAttribute("text-anchor", "middle");
+                label.setAttribute("font-size", "10");
+                label.setAttribute("font-weight", "bold");
+                label.setAttribute("fill", "#4a3728");
+                label.setAttribute("class", "opacity-0 transition-opacity duration-300 pointer-events-none");
+                label.textContent = stage.name;
+                g.onmouseenter = () => label.classList.replace('opacity-0', 'opacity-100');
+                g.onmouseleave = () => label.classList.replace('opacity-100', 'opacity-0');
+
+                g.appendChild(circle);
+                g.appendChild(text);
+                g.appendChild(label);
+                nodesContainer.appendChild(g);
+
+                // Add bottom buttons
+                const btn = document.createElement('button');
+                btn.className = `nav-btn px-3 py-1 text-xs rounded-full border border-sepia transition-all ${stage.id === 1 ? 'bg-sepia text-white' : 'text-sepia'}`;
+                btn.textContent = stage.name;
+                btn.setAttribute('data-id', stage.id);
+                btn.onclick = () => updateUI(stage.id);
+                btnNav.appendChild(btn);
+            });
+
+            updateUI(1);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

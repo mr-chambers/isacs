@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Silk Road Interactive Map</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @keyframes slide {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(250%); }
+        }
+        .animate-slide {
+            animation: slide 2s linear infinite;
+        }
+        /* Custom scrollbar for info panel */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 overflow-hidden">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        const Icon = ({ name, color, size = 18 }) => {
+            return <i data-lucide={name} style={{ color, width: size, height: size }}></i>;
+        };
+
+        const REGIONS = {
+            ROME: { 
+                x: 100, y: 180, name: "Rome",
+                religion: "As the capital of the Empire, Rome's conversion to Christianity provided the infrastructure for the faith's spread eastward.",
+                technology: "Consumed massive amounts of Chinese silk, leading to a trade deficit that drained Roman gold reserves.",
+                disease: "The ultimate destination for the Black Death's western spread, leading to the collapse of feudal labor markets.",
+                geo: "Situated on the Italian Peninsula, it served as the administrative heart of the Mediterranean world and the terminal node for western trade."
+            },
+            ALEXANDRIA: { 
+                x: 120, y: 250, name: "Alexandria",
+                religion: "A center for early Christian scholarship and the Gnostic movements that influenced Silk Road thought.",
+                technology: "The great library and later Islamic scholarship preserved Greek engineering texts eventually sent back to the East.",
+                disease: "A major port hub where plague-carrying rats from the Indian Ocean trade first entered the Mediterranean.",
+                geo: "A critical Mediterranean port and link between the Nile and the Red Sea, connecting the Indian Ocean trade to the Roman world."
+            },
+            ANTIOCH: { 
+                x: 180, y: 200, name: "Antioch",
+                religion: "One of the 'Pentarchy' cities, it served as a primary gateway for Nestorian Christians traveling to Central Asia.",
+                technology: "Famous for its glassworks and sophisticated weaving techniques that attempted to mimic Eastern styles.",
+                disease: "A bottleneck for land-based caravans where outbreaks were frequently recorded before reaching the coast.",
+                geo: "Known as the 'Gateway to the East,' this city sat at the mouth of the Orontes River, linking Mesopotamian routes to Mediterranean shipping."
+            },
+            BAGHDAD: { 
+                x: 250, y: 220, name: "Baghdad",
+                religion: "The House of Wisdom translated religious and philosophical texts, fostering a cosmopolitan Islamic Golden Age.",
+                technology: "Established the first paper mills outside of China after capturing paper-makers at the Battle of Talas.",
+                disease: "The dense urban population suffered massive casualties during various plague waves, disrupting the Caliphate's power.",
+                geo: "Strategically located at the narrowest point between the Tigris and Euphrates rivers, making it the central logistics hub of Mesopotamia."
+            },
+            SAMARKAND: { 
+                x: 380, y: 180, name: "Samarkand",
+                religion: "A mosaic of faiths where Zoroastrianism, Manichaeism, and Buddhism coexisted for centuries.",
+                technology: "Renowned for 'Samarkand Paper,' a high-quality hemp-based paper that replaced parchment in the West.",
+                disease: "A critical junction where the northern and southern plague routes converged in Central Asia.",
+                geo: "Located in the fertile Zarafshan River valley, this city was the central oasis of the Transoxiana region, surrounded by vast steppe and desert."
+            },
+            KASHGAR: { 
+                x: 450, y: 190, name: "Kashgar",
+                religion: "The point where the Silk Road split; its monastic complexes were vital for the Buddhist mission to China.",
+                technology: "A hub for the distribution of jade and fine ironwork moving toward the Abbasid markets.",
+                disease: "Its isolation in the desert often acted as a natural quarantine zone for passing caravans.",
+                geo: "Situated at the foot of the Pamir Mountains, it was the essential re-supply point before or after the grueling crossing of the 'Roof of the World'."
+            },
+            DUNHUANG: { 
+                x: 550, y: 200, name: "Dunhuang",
+                religion: "Home to the Mogao Caves, a massive library of Buddhist art and scripture that survived for 1,000 years.",
+                technology: "Source of thousands of early printed documents, showcasing the spread of woodblock printing technology.",
+                disease: "A sentinel city that documented the arrival of strange 'pestilences' from the western regions.",
+                geo: "The final oasis for westbound travelers before entering the Taklamakan Desert, and the gateway to the Gansu Corridor for those eastbound."
+            },
+            CHANGAN: { 
+                x: 680, y: 220, name: "Chang'an",
+                religion: "The terminus where foreign religions were officially sanctioned or suppressed by the Tang dynasty.",
+                technology: "The origin point of sericulture (silk making) and gunpowder, guarded as state secrets for centuries.",
+                disease: "The high-density population was often the origin point for zoonotic spillover events from local livestock.",
+                geo: "Located in the fertile Wei River valley, this capital city served as the eastern terminus of the entire Silk Road network."
+            },
+            TAXILA: { 
+                x: 380, y: 280, name: "Taxila",
+                religion: "A world-renowned university center for Buddhist learning that attracted scholars from across Eurasia.",
+                technology: "Pioneered early metallurgical techniques in crucible steel (Wootz steel) traded toward the Middle East.",
+                disease: "A resting point for tropical diseases moving north from the Indian subcontinent into the mountain passes.",
+                geo: "Nestled in the Gandhara region at the junction of the Indian subcontinent, Central Asia, and the Iranian Plateau."
+            },
+            BODH_GAYA: { 
+                x: 450, y: 350, name: "Bodh Gaya",
+                religion: "The site of the Buddha's enlightenment; the ideological source for the most successful religious expansion on the Silk Road.",
+                technology: "Exported refined sugar and mathematics (the concept of zero) along with religious pilgrims.",
+                disease: "Pilgrimage cycles often coincided with seasonal cholera outbreaks that followed the trade routes.",
+                geo: "Located on the banks of the Phalgu River in Northern India, it anchored the spiritual southern branch of the trans-Eurasian trade routes."
+            },
+            CONSTANTINOPLE: { 
+                x: 160, y: 160, name: "Constantinople",
+                religion: "The Orthodox center that sent missionaries to the Slavs and acted as a buffer for the spread of Islam.",
+                technology: "Famously smuggled silkworm eggs from China in hollow canes, breaking the Eastern silk monopoly.",
+                disease: "Suffered the 'Plague of Justinian,' which permanently weakened the Byzantine Empire's ability to hold territory.",
+                geo: "Perched on the Bosporus Strait, this city commanded the only water passage between the Black Sea and the Mediterranean."
+            },
+        };
+
+        const COMMODITIES = {
+            religion: {
+                id: 'religion',
+                label: 'Religion',
+                color: '#a78bfa',
+                icon: 'heart',
+                routes: [
+                    {
+                        id: 'buddhism',
+                        name: 'Spread of Buddhism',
+                        points: [REGIONS.BODH_GAYA, REGIONS.TAXILA, REGIONS.KASHGAR, REGIONS.DUNHUANG, REGIONS.CHANGAN],
+                    },
+                    {
+                        id: 'islam',
+                        name: 'Spread of Islam',
+                        points: [REGIONS.BAGHDAD, REGIONS.SAMARKAND, REGIONS.KASHGAR],
+                    }
+                ]
+            },
+            technology: {
+                id: 'technology',
+                label: 'Technology',
+                color: '#60a5fa',
+                icon: 'zap',
+                routes: [
+                    {
+                        id: 'paper',
+                        name: 'Paper-making',
+                        points: [REGIONS.CHANGAN, REGIONS.DUNHUANG, REGIONS.SAMARKAND, REGIONS.BAGHDAD, REGIONS.ROME],
+                    },
+                    {
+                        id: 'silk',
+                        name: 'Sericulture (Silk)',
+                        points: [REGIONS.CHANGAN, REGIONS.KASHGAR, REGIONS.SAMARKAND, REGIONS.ANTIOCH, REGIONS.ROME],
+                    }
+                ]
+            },
+            disease: {
+                id: 'disease',
+                label: 'Disease',
+                color: '#f87171',
+                icon: 'biohazard',
+                routes: [
+                    {
+                        id: 'plague',
+                        name: 'The Black Death',
+                        points: [REGIONS.CHANGAN, REGIONS.SAMARKAND, REGIONS.BAGHDAD, REGIONS.CONSTANTINOPLE, REGIONS.ROME],
+                    }
+                ]
+            }
+        };
+
+        const App = () => {
+            const [activeFilter, setActiveFilter] = useState('religion');
+            const [selectedPoint, setSelectedPoint] = useState(null);
+            const [isLoaded, setIsLoaded] = useState(false);
+
+            const SPEED = 50; 
+            const PARTICLE_SPACING = 100;
+
+            useEffect(() => {
+                setIsLoaded(true);
+                if (window.lucide) window.lucide.createIcons();
+            }, [activeFilter, selectedPoint]);
+
+            const currentRoutes = useMemo(() => COMMODITIES[activeFilter].routes, [activeFilter]);
+
+            const generatePath = (points) => {
+                return points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
+            };
+
+            const getPathLength = (points) => {
+                let length = 0;
+                for (let i = 0; i < points.length - 1; i++) {
+                    const p1 = points[i];
+                    const p2 = points[i + 1];
+                    length += Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+                }
+                return length;
+            };
+
+            return (
+                <div className="flex flex-col h-screen bg-slate-900 text-slate-100 font-sans overflow-hidden">
+                    <header className="p-4 md:p-6 bg-slate-800 border-b border-slate-700 flex flex-col md:flex-row justify-between items-center gap-4 shadow-xl z-20">
+                        <div>
+                            <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">
+                                Silk Road Interactive
+                            </h1>
+                            <p className="text-slate-400 text-xs md:text-sm font-medium">Historical Geo-Cultural Impact</p>
+                        </div>
+                        
+                        <div className="flex bg-slate-900/50 p-1 rounded-xl border border-slate-700">
+                            {Object.values(COMMODITIES).map((cat) => (
+                                <button
+                                    key={cat.id}
+                                    onClick={() => {
+                                        setActiveFilter(cat.id);
+                                        setSelectedPoint(null);
+                                    }}
+                                    className={`flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-lg transition-all duration-300 ${
+                                        activeFilter === cat.id 
+                                            ? 'bg-slate-700 text-white shadow-lg ring-1 ring-slate-500' 
+                                            : 'text-slate-400 hover:text-slate-200'
+                                    }`}
+                                >
+                                    <Icon name={cat.icon} size={16} />
+                                    <span className="font-medium text-sm">{cat.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </header>
+
+                    <main className="relative flex-1 bg-[#0a0f18] flex items-center justify-center p-2 md:p-4 overflow-hidden">
+                        <div className="relative w-full max-w-5xl aspect-[16/9] bg-slate-800/10 rounded-2xl md:rounded-3xl overflow-hidden border border-slate-800 shadow-2xl">
+                            <svg viewBox="0 0 800 450" className="w-full h-full select-none">
+                                <path 
+                                    d="M50,120 Q100,100 200,120 T400,150 T600,140 T750,180 L750,350 Q600,400 400,380 T150,350 T50,300 Z" 
+                                    fill="#1e293b" 
+                                    className="opacity-40"
+                                />
+                                
+                                <g>
+                                    {currentRoutes.map((route) => {
+                                        const pathData = generatePath(route.points);
+                                        const pathLength = getPathLength(route.points);
+                                        const duration = pathLength / SPEED; 
+                                        const particleCount = Math.max(1, Math.floor(pathLength / PARTICLE_SPACING));
+                                        const delayStep = duration / particleCount;
+
+                                        return (
+                                            <React.Fragment key={`${activeFilter}-${route.id}`}>
+                                                <path
+                                                    d={pathData}
+                                                    fill="none"
+                                                    stroke={COMMODITIES[activeFilter].color}
+                                                    strokeWidth="2"
+                                                    strokeLinecap="round"
+                                                    className="opacity-20"
+                                                />
+                                                <path
+                                                    d={pathData}
+                                                    fill="none"
+                                                    stroke={COMMODITIES[activeFilter].color}
+                                                    strokeWidth="3"
+                                                    strokeLinecap="round"
+                                                    strokeDasharray="1000"
+                                                    strokeDashoffset={isLoaded ? "0" : "1000"}
+                                                    className="transition-all duration-[3000ms] ease-in-out opacity-70"
+                                                    style={{ filter: `drop-shadow(0 0 10px ${COMMODITIES[activeFilter].color})` }}
+                                                />
+
+                                                {Array.from({ length: particleCount }).map((_, i) => (
+                                                    <circle key={i} r="3.5" fill={COMMODITIES[activeFilter].color} className="filter blur-[0.5px]">
+                                                        <animateMotion 
+                                                            dur={`${duration}s`} 
+                                                            begin={`${i * delayStep}s`}
+                                                            repeatCount="indefinite" 
+                                                            path={pathData} 
+                                                            rotate="auto"
+                                                        />
+                                                        <animate 
+                                                            attributeName="opacity" 
+                                                            values="0;1;1;0" 
+                                                            dur={`${duration}s`}
+                                                            begin={`${i * delayStep}s`}
+                                                            repeatCount="indefinite" 
+                                                        />
+                                                    </circle>
+                                                ))}
+                                            </React.Fragment>
+                                        );
+                                    })}
+                                </g>
+
+                                <g>
+                                    {Object.entries(REGIONS).map(([key, city]) => {
+                                        const isUsedInCurrent = currentRoutes.some(r => r.points.some(p => p.name === city.name));
+                                        const cityColor = isUsedInCurrent ? COMMODITIES[activeFilter].color : "#94a3b8";
+                                        
+                                        return (
+                                            <g 
+                                                key={key} 
+                                                className="cursor-pointer group"
+                                                onClick={() => {
+                                                    setSelectedPoint({ ...city });
+                                                }}
+                                            >
+                                                <circle
+                                                    cx={city.x}
+                                                    cy={city.y}
+                                                    r={isUsedInCurrent ? "10" : "6"}
+                                                    fill={cityColor}
+                                                    className="opacity-20 transition-opacity duration-300 group-hover:opacity-40"
+                                                />
+                                                <circle
+                                                    cx={city.x}
+                                                    cy={city.y}
+                                                    r={isUsedInCurrent ? "5" : "3.5"}
+                                                    fill={cityColor}
+                                                    className="stroke-slate-900 stroke-2 transition-opacity duration-300"
+                                                    style={isUsedInCurrent ? { filter: `drop-shadow(0 0 12px ${cityColor})` } : {}}
+                                                />
+                                                <g transform={`translate(${city.x}, ${city.y + 14})`}>
+                                                    <rect x="-30" y="-7" width="60" height="12" rx="2" fill="#0f172a" className="opacity-70" />
+                                                    <text textAnchor="middle" className="text-[10px] fill-slate-200 font-bold pointer-events-none uppercase tracking-tighter">
+                                                        {city.name}
+                                                    </text>
+                                                </g>
+                                            </g>
+                                        );
+                                    })}
+                                </g>
+                            </svg>
+
+                            {selectedPoint && (
+                                <div className="absolute top-2 right-2 md:top-6 md:right-6 w-64 md:w-80 bg-slate-900/95 backdrop-blur-xl border border-slate-700 p-4 md:p-6 rounded-2xl shadow-2xl z-30 animate-in slide-in-from-right duration-300 overflow-y-auto max-h-[90%] custom-scrollbar">
+                                    <button onClick={() => setSelectedPoint(null)} className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors p-1">
+                                        <Icon name="x" size={18} />
+                                    </button>
+                                    
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="p-2.5 rounded-xl shadow-inner" style={{ backgroundColor: `${COMMODITIES[activeFilter].color}22` }}>
+                                            <Icon name={COMMODITIES[activeFilter].icon} color={COMMODITIES[activeFilter].color} size={20} />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-base md:text-lg leading-tight text-white">{selectedPoint.name}</h3>
+                                            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Trading Hub</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div>
+                                            <h4 className="text-[10px] uppercase tracking-widest text-slate-500 font-black mb-1.5 flex items-center gap-1.5">
+                                                <Icon name="compass" size={12} /> Local {COMMODITIES[activeFilter].label} Context
+                                            </h4>
+                                            <p className="text-sm font-bold text-white leading-tight">Contribution of {selectedPoint.name}</p>
+                                        </div>
+                                        <div className="relative pl-4 border-l-2 border-slate-700 bg-white/5 p-2 rounded-r-lg">
+                                            <p className="text-xs md:text-sm text-slate-300 leading-relaxed italic font-serif">
+                                                "{selectedPoint[activeFilter] || 'A vital node in the network of trade.'}"
+                                            </p>
+                                        </div>
+                                        <div className="bg-white/5 p-3 md:p-4 rounded-xl border border-white/10">
+                                            <h4 className="text-[10px] uppercase tracking-widest text-slate-400 font-black mb-2 flex items-center gap-1.5">
+                                                <Icon name="info" size={12} /> Geographical Role
+                                            </h4>
+                                            <p className="text-[11px] md:text-xs text-slate-400 leading-relaxed">
+                                                {selectedPoint.geo || `This site served as a key rest point and strategic waypoint for merchants and travelers navigating the hazardous ${activeFilter} corridors.`}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </main>
+
+                    <footer className="px-6 py-3 bg-slate-800/80 border-t border-slate-700 flex justify-between items-center text-[9px] text-slate-500 uppercase tracking-[0.2em] font-bold">
+                        <span className="hidden sm:inline">Historical Cartography Engine</span>
+                        <span>Select a category and hub to explore connections</span>
+                        <div className="flex gap-4">
+                            <span className="text-blue-500/50">Normalized Flow Engine v2.0</span>
+                        </div>
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

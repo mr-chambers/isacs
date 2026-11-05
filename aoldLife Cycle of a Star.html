@@ -1,0 +1,511 @@
+!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Life of a Star - Interactive Journey</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #050505;
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+
+        .star-container {
+            position: relative;
+            height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            perspective: 1000px;
+        }
+
+        .star-glow {
+            position: absolute;
+            border-radius: 50%;
+            transition: all 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+            filter: blur(20px);
+            opacity: 0.6;
+        }
+
+        .star-core {
+            position: absolute;
+            border-radius: 50%;
+            transition: all 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 40px rgba(255, 255, 255, 0.2);
+            z-index: 10;
+        }
+
+        /* Pulsing animation for giants */
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 1; }
+        }
+
+        .pulsing {
+            animation: pulse 4s infinite ease-in-out;
+        }
+
+        .nebula-particle {
+            position: absolute;
+            background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .btn-path {
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-path:hover:not(:disabled) {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .btn-active {
+            background-color: #3b82f6 !important;
+            color: white;
+            border-color: #60a5fa;
+        }
+
+        .info-card {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #star-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .history-item::before {
+            content: '';
+            position: absolute;
+            left: -17px;
+            top: 5px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #3b82f6;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Background Stars -->
+    <canvas id="star-canvas"></canvas>
+
+    <!-- Header -->
+    <header class="relative z-10 p-6 text-center">
+        <h1 class="text-4xl md:text-5xl font-extrabold tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-400 to-red-400">
+            STELLAR EVOLUTION
+        </h1>
+        <p class="mt-2 text-slate-400 max-w-2xl mx-auto">Witness the cosmic journey from a cloud of dust to the most extreme objects in the universe.</p>
+    </header>
+
+    <main class="relative z-10 flex-grow flex flex-col md:flex-row items-center justify-center gap-8 px-4 md:px-12 pb-12">
+        
+        <!-- Left: Visualization Area -->
+        <div class="w-full md:w-1/2 flex flex-col items-center">
+            <div class="star-container w-full" id="visual-target">
+                <div id="glow" class="star-glow"></div>
+                <div id="core" class="star-core"></div>
+            </div>
+            
+            <div class="mt-8 flex flex-wrap justify-center gap-3">
+                <button onclick="setMass('low')" id="btn-low" class="btn-path px-6 py-2 rounded-full text-sm font-semibold">Low Mass Star</button>
+                <button onclick="setMass('high')" id="btn-high" class="btn-path px-6 py-2 rounded-full text-sm font-semibold">High Mass Star</button>
+            </div>
+        </div>
+
+        <!-- Right: Information & Controls -->
+        <div class="w-full md:w-1/2 max-w-lg">
+            <div class="info-card rounded-3xl p-8 shadow-2xl relative">
+                <!-- Navigation -->
+                <div class="flex justify-between items-center mb-6">
+                    <button id="btn-back" onclick="goBack()" class="text-slate-400 hover:text-white transition-colors flex items-center gap-2 text-sm disabled:opacity-0 disabled:pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                        Back
+                    </button>
+                    <div class="flex items-center gap-3">
+                        <span id="fuel-badge" class="bg-orange-900/30 text-orange-300 text-[10px] font-bold px-2 py-0.5 rounded border border-orange-500/30 uppercase tracking-widest hidden"></span>
+                        <span id="stage-badge" class="bg-blue-900/50 text-blue-300 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Loading...</span>
+                    </div>
+                </div>
+                
+                <h2 id="stage-title" class="text-3xl font-bold mb-4">Stellar Nebula</h2>
+                <p id="stage-desc" class="text-slate-300 leading-relaxed mb-6">
+                    A giant cloud of gas and dust. Gravity begins to pull these materials together to form a star.
+                </p>
+
+                <div class="space-y-4">
+                    <div id="next-options" class="grid grid-cols-1 gap-3">
+                        <!-- Buttons injected here -->
+                    </div>
+
+                    <!-- History Summary (Visible at end stages) -->
+                    <div id="history-container" class="hidden mt-8 border-t border-white/10 pt-6">
+                        <h3 class="text-sm font-bold text-blue-400 uppercase tracking-widest mb-4">Stellar History</h3>
+                        <div id="history-list" class="space-y-3 pl-5 border-l border-white/10 relative">
+                            <!-- History items injected here -->
+                        </div>
+                    </div>
+                    
+                    <button onclick="resetEvolution()" class="w-full mt-4 text-slate-500 text-xs hover:text-slate-300 transition-colors uppercase tracking-widest font-bold">
+                        ↺ Restart Life Cycle
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- State Management ---
+        let currentStage = 'nebula';
+        let massType = null;
+        let history = []; 
+
+        const stages = {
+            nebula: {
+                title: "Stellar Nebula",
+                badge: "Birth Place",
+                fuel: "Dust & Gas",
+                desc: "The cosmic nursery. These vast clouds of hydrogen gas and dust are the birthplaces of stars. Gravity slowly collapses parts of the cloud.",
+                color: "#4a5568",
+                glow: "rgba(100, 100, 255, 0.2)",
+                size: 200,
+                blur: 40,
+                options: [
+                    { label: "Form Protostar", next: "protostar" }
+                ]
+            },
+            protostar: {
+                title: "Protostar",
+                badge: "Ignition",
+                fuel: "Gravitational Potential",
+                desc: "The core is heating up. Once the temperature reaches 15 million degrees Celsius, nuclear fusion begins, turning hydrogen into helium.",
+                color: "#fbd38d",
+                glow: "rgba(251, 211, 141, 0.4)",
+                size: 80,
+                blur: 20,
+                options: [
+                    { label: "View Low Mass Path", next: "main_sequence_low", action: () => setMass('low') },
+                    { label: "View High Mass Path", next: "main_sequence_high", action: () => setMass('high') }
+                ]
+            },
+            main_sequence_low: {
+                title: "Average Star",
+                badge: "Adult Stage",
+                fuel: "Hydrogen",
+                desc: "A stable period like our Sun. It will spend billions of years fusing hydrogen into helium. Gravity and pressure are in perfect balance.",
+                color: "#fbbf24",
+                glow: "rgba(251, 191, 36, 0.6)",
+                size: 60,
+                blur: 15,
+                options: [
+                    { label: "Hydrogen Runs Out", next: "red_giant" }
+                ]
+            },
+            red_giant: {
+                title: "Red Giant",
+                badge: "Expansion",
+                fuel: "Helium",
+                desc: "The hydrogen core is depleted. The star expands and cools, turning red. It begins fusing helium into carbon in its core and hydrogen in a shell.",
+                color: "#ef4444",
+                glow: "rgba(239, 68, 68, 0.5)",
+                size: 180,
+                blur: 30,
+                pulse: true,
+                options: [
+                    { label: "Shed Layers", next: "planetary_nebula" }
+                ]
+            },
+            planetary_nebula: {
+                title: "Planetary Nebula",
+                badge: "Ejection",
+                fuel: "Residual Heat",
+                desc: "Fusion has stopped. The outer layers are drifting away into space, creating a beautiful glowing shell of ionized gas around the hot core.",
+                color: "#3b82f6",
+                glow: "rgba(59, 130, 246, 0.3)",
+                size: 120,
+                blur: 60,
+                options: [
+                    { label: "Cooling Core", next: "white_dwarf" }
+                ]
+            },
+            white_dwarf: {
+                title: "White Dwarf",
+                badge: "Final Remnant",
+                fuel: "None",
+                desc: "The remaining hot, dense core of the star. It no longer undergoes fusion and will slowly cool over trillions of years.",
+                color: "#ffffff",
+                glow: "rgba(255, 255, 255, 0.8)",
+                size: 20,
+                blur: 10,
+                isEnd: true,
+                options: []
+            },
+            main_sequence_high: {
+                title: "Massive Star",
+                badge: "Luminous Giant",
+                fuel: "Hydrogen",
+                desc: "Burn fast, die young. These stars are much hotter and brighter than our Sun, consuming their fuel in millions rather than billions of years.",
+                color: "#60a5fa",
+                glow: "rgba(96, 165, 250, 0.7)",
+                size: 100,
+                blur: 20,
+                options: [
+                    { label: "Expand to Supergiant", next: "red_supergiant" }
+                ]
+            },
+            red_supergiant: {
+                title: "Red Supergiant",
+                badge: "Extreme Expansion",
+                fuel: "Heavy Elements",
+                desc: "The largest stars in the universe. They fuse heavier and heavier elements (Carbon, Neon, Oxygen, Silicon) until an iron core is formed.",
+                color: "#dc2626",
+                glow: "rgba(220, 38, 38, 0.6)",
+                size: 240,
+                blur: 40,
+                pulse: true,
+                options: [
+                    { label: "Core Collapse!", next: "supernova" }
+                ]
+            },
+            supernova: {
+                title: "Supernova",
+                badge: "Explosion",
+                fuel: "Iron (Collapse)",
+                desc: "Iron core collapse triggers a massive explosion. It scatters heavy elements across the universe, seeding future solar systems.",
+                color: "#ffffff",
+                glow: "rgba(255, 255, 255, 1)",
+                size: 300,
+                blur: 100,
+                options: [
+                    { label: "Remnant: Neutron Star", next: "neutron_star" },
+                    { label: "Remnant: Black Hole", next: "black_hole" }
+                ]
+            },
+            neutron_star: {
+                title: "Neutron Star",
+                badge: "Dense Core",
+                fuel: "Neutron Degeneracy",
+                desc: "So dense that a teaspoon would weigh a billion tons. Supported by neutron degeneracy pressure rather than fusion.",
+                color: "#a5f3fc",
+                glow: "rgba(165, 243, 252, 0.9)",
+                size: 10,
+                blur: 5,
+                isEnd: true,
+                options: []
+            },
+            black_hole: {
+                title: "Black Hole",
+                badge: "Singularity",
+                fuel: "None (Infinite Gravity)",
+                desc: "The core's gravity is so strong that not even light can escape. Space-time is warped infinitely at its center.",
+                color: "#000000",
+                glow: "rgba(255, 255, 255, 0.1)",
+                size: 40,
+                blur: 2,
+                border: "2px solid rgba(255,255,255,0.4)",
+                isEnd: true,
+                options: []
+            }
+        };
+
+        const coreEl = document.getElementById('core');
+        const glowEl = document.getElementById('glow');
+        const stageTitle = document.getElementById('stage-title');
+        const stageDesc = document.getElementById('stage-desc');
+        const stageBadge = document.getElementById('stage-badge');
+        const fuelBadge = document.getElementById('fuel-badge');
+        const nextOptions = document.getElementById('next-options');
+        const backBtn = document.getElementById('btn-back');
+        const historyContainer = document.getElementById('history-container');
+        const historyList = document.getElementById('history-list');
+
+        function updateUI() {
+            const data = stages[currentStage];
+            
+            stageTitle.innerText = data.title;
+            stageDesc.innerText = data.desc;
+            stageBadge.innerText = data.badge;
+
+            if (data.fuel) {
+                fuelBadge.innerText = `FUEL: ${data.fuel}`;
+                fuelBadge.classList.remove('hidden');
+            } else {
+                fuelBadge.classList.add('hidden');
+            }
+
+            // Visuals
+            coreEl.style.width = `${data.size}px`;
+            coreEl.style.height = `${data.size}px`;
+            coreEl.style.backgroundColor = data.color;
+            coreEl.style.border = data.border || 'none';
+            glowEl.style.width = `${data.size * 1.5}px`;
+            glowEl.style.height = `${data.size * 1.5}px`;
+            glowEl.style.backgroundColor = data.glow;
+            glowEl.style.filter = `blur(${data.blur}px)`;
+            coreEl.className = `star-core ${data.pulse ? 'pulsing' : ''}`;
+
+            // Buttons
+            nextOptions.innerHTML = '';
+            data.options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = "w-full py-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 font-medium transition-all text-sm";
+                btn.innerText = opt.label;
+                btn.onclick = () => {
+                    if (opt.action) opt.action();
+                    transitionTo(opt.next);
+                };
+                nextOptions.appendChild(btn);
+            });
+
+            // Navigation State
+            backBtn.disabled = history.length === 0;
+            
+            // Mass Toggle Appearance
+            document.getElementById('btn-low').className = `btn-path px-6 py-2 rounded-full text-sm font-semibold ${massType === 'low' ? 'btn-active' : 'text-slate-400'}`;
+            document.getElementById('btn-high').className = `btn-path px-6 py-2 rounded-full text-sm font-semibold ${massType === 'high' ? 'btn-active' : 'text-slate-400'}`;
+            
+            // Nebula Particles
+            if (currentStage === 'nebula') createNebulaParticles();
+            else clearParticles();
+
+            // History Summary
+            if (data.isEnd) {
+                renderHistory();
+                historyContainer.classList.remove('hidden');
+            } else {
+                historyContainer.classList.add('hidden');
+            }
+        }
+
+        function transitionTo(next) {
+            if (history.length > 0 && 
+                currentStage.startsWith('main_sequence') && 
+                next.startsWith('main_sequence')) {
+                history.pop(); 
+            }
+
+            history.push({
+                stage: currentStage,
+                mass: massType
+            });
+            currentStage = next;
+            updateUI();
+        }
+
+        function goBack() {
+            if (history.length > 0) {
+                const prev = history.pop();
+                currentStage = prev.stage;
+                massType = prev.mass;
+                updateUI();
+            }
+        }
+
+        function setMass(type) {
+            if (currentStage === 'main_sequence_low' && type === 'high') transitionTo('main_sequence_high');
+            else if (currentStage === 'main_sequence_high' && type === 'low') transitionTo('main_sequence_low');
+            else massType = type;
+            updateUI();
+        }
+
+        function renderHistory() {
+            historyList.innerHTML = '';
+            const fullPath = [...history, { stage: currentStage }];
+            fullPath.forEach((item, idx) => {
+                const div = document.createElement('div');
+                div.className = "history-item relative text-xs text-slate-400";
+                const stageData = stages[item.stage];
+                div.innerHTML = `<span class="text-slate-200 font-semibold">${stageData.title}</span> <br/> ${idx === fullPath.length - 1 ? 'End Result' : 'Phase ' + (idx + 1)}`;
+                historyList.appendChild(div);
+            });
+        }
+
+        function resetEvolution() {
+            currentStage = 'nebula';
+            massType = null;
+            history = [];
+            updateUI();
+        }
+
+        // --- Visual Assets ---
+        const canvas = document.getElementById('star-canvas');
+        const ctx = canvas.getContext('2d');
+        let stars = [];
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            initStars();
+        }
+
+        function initStars() {
+            stars = [];
+            for (let i = 0; i < 200; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 1.5,
+                    opacity: Math.random()
+                });
+            }
+        }
+
+        function drawStars() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            stars.forEach(s => {
+                ctx.fillStyle = `rgba(255, 255, 255, ${s.opacity})`;
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+                ctx.fill();
+                s.opacity += (Math.random() - 0.5) * 0.05;
+                if (s.opacity < 0.1) s.opacity = 0.1;
+                if (s.opacity > 0.8) s.opacity = 0.8;
+            });
+            requestAnimationFrame(drawStars);
+        }
+
+        function createNebulaParticles() {
+            const container = document.getElementById('visual-target');
+            clearParticles();
+            for (let i = 0; i < 40; i++) {
+                const p = document.createElement('div');
+                p.className = 'nebula-particle';
+                const size = Math.random() * 100 + 50;
+                p.style.width = `${size}px`; p.style.height = `${size}px`;
+                p.style.left = `${Math.random() * 100}%`; p.style.top = `${Math.random() * 100}%`;
+                p.style.backgroundColor = `hsla(${200 + Math.random() * 60}, 70%, 50%, 0.1)`;
+                p.style.filter = 'blur(30px)';
+                container.appendChild(p);
+            }
+        }
+
+        function clearParticles() {
+            const container = document.getElementById('visual-target');
+            container.querySelectorAll('.nebula-particle').forEach(p => p.remove());
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+        drawStars();
+        updateUI();
+    </script>
+</body>
+</html>

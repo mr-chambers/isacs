@@ -1,0 +1,2026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Star Lifecycle Simulator: Mass & Destiny</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        space: {
+                            900: '#060814',
+                            800: '#0a0c1b',
+                            700: '#121633',
+                            600: '#1e244d'
+                        },
+                        neon: {
+                            cyan: '#00f3ff',
+                            gold: '#ffd700',
+                            magenta: '#ff007f',
+                            violet: '#a855f7',
+                            blue: '#3b82f6',
+                            crimson: '#ff3366'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Modern Space Theme Reset & Core Utilities */
+        body {
+            background-color: #060814;
+            color: #f1f5f9;
+            overflow-x: hidden;
+            cursor: default;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        button, [role="button"], [role="slider"] {
+            cursor: pointer;
+        }
+
+        /* Custom Dark Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0a0c1b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e244d;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3b82f6;
+        }
+
+        /* Glassmorphism Panels */
+        .glass-panel {
+            background: rgba(10, 12, 27, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-panel-glow {
+            box-shadow: 0 0 25px rgba(0, 243, 255, 0.08);
+        }
+
+        /* Button Glow & Accent Utilities */
+        .glow-btn-cyan {
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.3);
+            transition: all 0.2s ease-in-out;
+        }
+        .glow-btn-cyan:hover {
+            box-shadow: 0 0 25px rgba(0, 243, 255, 0.6);
+            transform: translateY(-1px);
+        }
+
+        /* Canvas Touch Layer */
+        #canvasContainer {
+            touch-action: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans antialiased text-slate-100 selection:bg-neon-cyan selection:text-space-900">
+
+    <!-- TOP NAVIGATION BAR -->
+    <header class="border-b border-indigo-900/50 bg-space-800/90 sticky top-0 z-30 px-4 py-3 flex items-center justify-between shadow-xl backdrop-blur-md">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 via-rose-500 to-cyan-400 p-0.5 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                <div class="w-full h-full bg-space-900 rounded-[10px] flex items-center justify-center">
+                    <span class="text-xl">✨</span>
+                </div>
+            </div>
+            <div>
+                <h1 class="text-lg md:text-xl font-extrabold tracking-wide bg-gradient-to-r from-cyan-400 via-amber-300 to-violet-400 bg-clip-text text-transparent">
+                    STAR LIFECYCLE SIMULATOR
+                </h1>
+                <p class="text-xs text-slate-400 font-medium hidden sm:block">
+                    Mass & Destiny • Interactive Middle School Astronomy Simulation
+                </p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2 md:gap-3">
+            <!-- Glossary Button -->
+            <button type="button" onclick="toggleGlossary()" class="px-3 py-1.5 rounded-lg bg-indigo-900/40 hover:bg-indigo-800/60 border border-indigo-500/40 text-cyan-300 text-xs font-bold flex items-center gap-1.5 transition">
+                <span>📖</span>
+                <span>Glossary</span>
+            </button>
+
+            <!-- Reset / New Star Button -->
+            <button type="button" onclick="resetSimulation()" class="px-3 py-1.5 rounded-lg bg-rose-900/40 hover:bg-rose-800/60 border border-rose-500/40 text-rose-200 text-xs font-bold flex items-center gap-1.5 transition">
+                <span>🔄</span>
+                <span class="hidden sm:inline">New Star</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN INTERACTIVE LAYOUT -->
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 p-3 md:p-5 max-w-7xl mx-auto w-full">
+
+        <!-- LEFT DISPLAY COLUMN: VISUAL CANVAS & SIZE COMPARISON (7 COLS) -->
+        <section class="lg:col-span-7 flex flex-col gap-3">
+
+            <!-- MAIN CANVAS CONTAINER -->
+            <div id="canvasContainer" class="relative bg-space-900 rounded-2xl border border-indigo-900/60 overflow-hidden shadow-2xl flex flex-col items-center justify-center min-h-[360px] md:min-h-[460px] flex-1">
+                
+                <!-- Background Particle Animation Canvas -->
+                <canvas id="starCanvas" class="absolute inset-0 w-full h-full cursor-crosshair"></canvas>
+
+                <!-- Top Overlay: Mass Badge & Density Indicator -->
+                <div class="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-10">
+                    <div id="massBadge" class="px-3 py-1 rounded-full bg-space-800/80 backdrop-blur-md border border-slate-700 text-xs font-semibold text-slate-200 flex items-center gap-2 shadow-md">
+                        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+                        <span id="massBadgeText">Nebula Setup Phase</span>
+                    </div>
+                    <div id="densityBadge" class="px-3 py-1 rounded-full bg-space-800/80 backdrop-blur-md border border-slate-700 text-xs font-semibold text-slate-300 hidden md:flex items-center gap-1.5">
+                        <span>☁️ Gas Density:</span>
+                        <span id="densityBadgeValue" class="text-amber-300 font-bold">High Density</span>
+                    </div>
+                </div>
+
+                <!-- Bottom Overlay: Size Comparison Scale Axis -->
+                <div id="scaleOverlay" class="absolute bottom-3 left-3 right-3 bg-space-800/90 backdrop-blur-md border border-slate-700/80 rounded-xl p-3 z-10 hidden transition-all shadow-xl">
+                    <!-- Title & Synchronized Badge Header -->
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-slate-200 flex items-center gap-1">
+                                <span>📏</span> SIZE COMPARISON
+                            </span>
+                            <span id="scaleRatioText" class="text-xs px-2 py-0.5 rounded-md bg-cyan-950 text-cyan-300 border border-cyan-800 font-mono font-bold">
+                                1.0x Sun's Width
+                            </span>
+                        </div>
+                        <!-- Relatable Comparison Analogy -->
+                        <div id="scaleAnalogyText" class="text-[11px] text-amber-300 font-medium italic">
+                            Same size as our Sun!
+                        </div>
+                    </div>
+
+                    <!-- Benchmark Scale Bar Track -->
+                    <div class="relative pt-4 pb-1 px-1">
+                        <!-- Background Track -->
+                        <div class="w-full bg-space-700 h-2 rounded-full border border-slate-800 relative">
+                            <!-- Fill Bar -->
+                            <div id="starScaleBar" class="bg-gradient-to-r from-cyan-400 via-amber-400 to-rose-500 h-full w-[35%] rounded-full transition-all duration-500"></div>
+                        </div>
+
+                        <!-- Active Benchmark Pin -->
+                        <div id="scalePin" class="absolute top-1.5 -translate-x-1/2 transition-all duration-500 flex flex-col items-center pointer-events-none" style="left: 35%;">
+                            <span class="text-xs animate-bounce">📍</span>
+                        </div>
+
+                        <!-- Benchmark Axis Labels -->
+                        <div class="flex justify-between items-center text-[9px] md:text-[10px] text-slate-400 font-semibold mt-2 border-t border-slate-800/60 pt-1">
+                            <span class="text-blue-300">🏙️ Earth / City</span>
+                            <span class="text-amber-300">☀️ Our Sun</span>
+                            <span class="text-rose-300">🔵 Supergiant</span>
+                            <span class="text-violet-300">🌌 Swallows Planets</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hover Info Tooltip -->
+                <div id="canvasTooltip" class="absolute pointer-events-none bg-space-800/90 border border-cyan-500/40 px-2.5 py-1.5 rounded-lg text-xs text-cyan-200 shadow-xl opacity-0 transition-opacity z-20">
+                    Hover over star to inspect
+                </div>
+            </div>
+
+            <!-- EVOLUTIONARY TIMELINE PROGRESS -->
+            <div class="glass-panel rounded-xl p-3 border border-indigo-900/40">
+                <div class="flex items-center justify-between text-xs font-bold text-slate-400 mb-2">
+                    <span class="uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                        <span>🧭</span> Evolutionary Stages
+                    </span>
+                    <span id="timelineStageTracker" class="text-cyan-400 font-mono">Stage 0 of 0</span>
+                </div>
+                <div id="timelineNodes" class="flex items-center gap-2 overflow-x-auto pb-1 pt-1 scrollbar-none">
+                    <!-- Dynamic stage pills generated by JS -->
+                </div>
+            </div>
+
+        </section>
+
+        <!-- RIGHT CONTROL COLUMN: CONFIGURATION & METRICS (5 COLS) -->
+        <section class="lg:col-span-5 flex flex-col gap-4">
+
+            <!-- MODE 1: NEBULA SETUP CARD (Visible before core ignition) -->
+            <div id="setupCard" class="glass-panel glass-panel-glow rounded-2xl p-4 md:p-5 border border-indigo-500/30 flex flex-col gap-4">
+                <div>
+                    <span class="px-2.5 py-0.5 rounded-md bg-cyan-950 text-cyan-400 border border-cyan-800 text-[11px] font-bold uppercase tracking-wider">
+                        Step 1: Configure Nebula
+                    </span>
+                    <h2 class="text-xl font-bold text-slate-100 mt-2">Create Stellar Cloud</h2>
+                    <p class="text-xs text-slate-300 mt-1 leading-relaxed">
+                        Every star begins as a cloud of cosmic hydrogen gas and dust. Select mass and cloud density to shape its lifecycle!
+                    </p>
+                </div>
+
+                <!-- MASS PRESET CARDS -->
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-slate-300 uppercase tracking-wider block">
+                        Initial Mass Class
+                    </label>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <!-- Option 1: Low Mass -->
+                        <button type="button" onclick="selectMassPreset('low')" id="massBtn-low" class="mass-preset-btn p-3 rounded-xl border border-slate-700 bg-space-800/80 hover:border-cyan-500 text-left transition flex flex-col justify-between cursor-pointer">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-rose-300">Low Mass</span>
+                                <span class="text-[10px] px-1.5 py-0.5 rounded bg-rose-950/80 text-rose-400 border border-rose-800 font-mono">0.1–0.5x Sun</span>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-1">Red Dwarf path. Sips fuel for trillions of years.</p>
+                        </button>
+
+                        <!-- Option 2: Medium Mass / Sun-like -->
+                        <button type="button" onclick="selectMassPreset('sun')" id="massBtn-sun" class="mass-preset-btn p-3 rounded-xl border border-amber-500 bg-amber-950/30 text-left transition flex flex-col justify-between ring-2 ring-amber-500/40 cursor-pointer">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-amber-300">Sun-Like</span>
+                                <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-950/80 text-amber-400 border border-amber-800 font-mono">0.8–2.0x Sun</span>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-1">Yellow Dwarf path. Red Giant & White Dwarf finish.</p>
+                        </button>
+
+                        <!-- Option 3: High Mass -->
+                        <button type="button" onclick="selectMassPreset('high')" id="massBtn-high" class="mass-preset-btn p-3 rounded-xl border border-slate-700 bg-space-800/80 hover:border-cyan-500 text-left transition flex flex-col justify-between cursor-pointer">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-blue-300">High Mass</span>
+                                <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-950/80 text-blue-400 border border-blue-800 font-mono">8–20x Sun</span>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-1">Blue Supergiant path. Supernova to Neutron Star.</p>
+                        </button>
+
+                        <!-- Option 4: Supermassive -->
+                        <button type="button" onclick="selectMassPreset('supermassive')" id="massBtn-supermassive" class="mass-preset-btn p-3 rounded-xl border border-slate-700 bg-space-800/80 hover:border-cyan-500 text-left transition flex flex-col justify-between cursor-pointer">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-violet-300">Supermassive</span>
+                                <span class="text-[10px] px-1.5 py-0.5 rounded bg-violet-950/80 text-violet-400 border border-violet-800 font-mono">> 20x Sun</span>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-1">Hypergiant path. Collapses into a Black Hole!</p>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- FINE-TUNE MASS CUSTOM SLIDER -->
+                <div class="bg-space-800/60 p-3 rounded-xl border border-slate-800 space-y-2">
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="font-semibold text-slate-300">Exact Mass Fine-Tuning:</span>
+                        <span id="sliderMassDisplay" class="font-mono text-cyan-400 font-bold">1.0x Sun's Mass</span>
+                    </div>
+                    <!-- Custom ARIA Slider (Zero native text/range input to prevent dictation tooltips) -->
+                    <div id="customSliderTrack" role="slider" tabindex="0" aria-valuemin="0.1" aria-valuemax="30.0" aria-valuenow="1.0" aria-label="Exact Mass Fine-Tuning" class="relative w-full h-3 bg-space-900 border border-slate-700 rounded-full cursor-pointer touch-none my-2">
+                        <div id="customSliderFill" class="absolute top-0 left-0 h-full bg-gradient-to-r from-amber-400 to-cyan-400 rounded-full pointer-events-none" style="width: 3%;"></div>
+                        <div id="customSliderThumb" class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-cyan-400 border-2 border-space-900 shadow-lg shadow-cyan-400/50 pointer-events-none" style="left: 3%;"></div>
+                    </div>
+                </div>
+
+                <!-- GAS DENSITY DUAL TOGGLE -->
+                <div>
+                    <label class="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-1.5">
+                        Interstellar Cloud Density
+                    </label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="setDensity('low')" id="densityBtn-low" class="px-3 py-2 rounded-xl border border-slate-700 bg-space-800 text-xs font-semibold text-slate-300 hover:border-slate-500 flex items-center justify-center gap-1.5 transition cursor-pointer">
+                            <span>💨 Low Density</span>
+                        </button>
+                        <button type="button" onclick="setDensity('high')" id="densityBtn-high" class="px-3 py-2 rounded-xl border border-cyan-500 bg-cyan-950/40 text-xs font-semibold text-cyan-300 flex items-center justify-center gap-1.5 transition cursor-pointer">
+                            <span>✨ High Density</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- IGNITE STELLAR CORE BUTTON -->
+                <button type="button" onclick="igniteStellarCore()" class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-rose-500 to-cyan-500 text-space-900 font-extrabold text-sm tracking-wide glow-btn-cyan uppercase flex items-center justify-center gap-2 mt-2 cursor-pointer">
+                    <span>🔥 Ignite Stellar Core / Begin Fusion</span>
+                </button>
+            </div>
+
+            <!-- MODE 2: ACTIVE SIMULATION DASHBOARD (Visible during simulation) -->
+            <div id="activeDashboard" class="glass-panel rounded-2xl p-4 md:p-5 border border-indigo-900/60 flex flex-col gap-4 hidden">
+
+                <!-- STAGE TITLE & QUICK SUMMARY -->
+                <div>
+                    <div class="flex items-center justify-between">
+                        <span id="stageSpectralBadge" class="px-2.5 py-0.5 rounded-md bg-amber-950 text-amber-300 border border-amber-800 text-[11px] font-mono font-bold">
+                            Yellow Star (Class G2V)
+                        </span>
+                        <span id="stageDurationBadge" class="text-xs text-slate-400 font-mono">
+                            ~10 Billion Years
+                        </span>
+                    </div>
+                    <h2 id="stageTitle" class="text-2xl font-black text-slate-100 mt-1 bg-gradient-to-r from-cyan-300 to-amber-200 bg-clip-text text-transparent">
+                        Main Sequence (Yellow Dwarf)
+                    </h2>
+                </div>
+
+                <!-- STELLAR STATS METRICS GRID -->
+                <div class="grid grid-cols-2 gap-2.5">
+                    <!-- Core Temperature -->
+                    <div class="bg-space-800/80 border border-slate-800 p-2.5 rounded-xl flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-rose-950/80 border border-rose-800 flex items-center justify-center text-rose-400 shrink-0 font-bold text-sm">
+                            🌡️
+                        </div>
+                        <div>
+                            <div class="text-[10px] font-semibold text-slate-400 uppercase">Core Temp</div>
+                            <div id="statTemp" class="text-xs md:text-sm font-bold font-mono text-rose-300">15 Million °C</div>
+                        </div>
+                    </div>
+
+                    <!-- Primary Fuel -->
+                    <div class="bg-space-800/80 border border-slate-800 p-2.5 rounded-xl flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-amber-950/80 border border-amber-800 flex items-center justify-center text-amber-400 shrink-0 font-bold text-sm">
+                            ⚛️
+                        </div>
+                        <div>
+                            <div class="text-[10px] font-semibold text-slate-400 uppercase">Primary Fuel</div>
+                            <div id="statFuel" class="text-xs md:text-sm font-bold font-mono text-amber-300">Hydrogen → Helium</div>
+                        </div>
+                    </div>
+
+                    <!-- Star Diameter / Size -->
+                    <div class="bg-space-800/80 border border-slate-800 p-2.5 rounded-xl flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-cyan-950/80 border border-cyan-800 flex items-center justify-center text-cyan-400 shrink-0 font-bold text-sm">
+                            📐
+                        </div>
+                        <div>
+                            <div class="text-[10px] font-semibold text-slate-400 uppercase">Star Diameter</div>
+                            <div id="statSize" class="text-xs md:text-sm font-bold font-mono text-cyan-300">1.4 Million km</div>
+                        </div>
+                    </div>
+
+                    <!-- Phase Duration -->
+                    <div class="bg-space-800/80 border border-slate-800 p-2.5 rounded-xl flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-violet-950/80 border border-violet-800 flex items-center justify-center text-violet-400 shrink-0 font-bold text-sm">
+                            ⏳
+                        </div>
+                        <div>
+                            <div class="text-[10px] font-semibold text-slate-400 uppercase">Phase Duration</div>
+                            <div id="statLifespan" class="text-xs md:text-sm font-bold font-mono text-violet-300">10 Billion Yrs</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- GRAVITY VS PRESSURE TUG-OF-WAR GAUGE (Visual Bar Only, No Percentages) -->
+                <div class="bg-space-800/90 border border-slate-800 p-3 rounded-xl flex flex-col gap-2">
+                    <div class="flex items-center justify-between text-xs font-bold">
+                        <span class="text-slate-300 flex items-center gap-1">
+                            <span>⚖️</span> Stellar Balance Engine
+                        </span>
+                        <span id="equilibriumStatusText" class="text-emerald-400 font-mono text-[11px] bg-emerald-950/80 border border-emerald-800 px-2 py-0.5 rounded-full">
+                            Hydrostatic Equilibrium
+                        </span>
+                    </div>
+
+                    <!-- Dual Progress Gauge Bar -->
+                    <div class="space-y-1.5 pt-1">
+                        <!-- Inward Gravity Bar -->
+                        <div>
+                            <div class="text-[10px] text-slate-400 font-semibold mb-0.5">
+                                <span class="text-blue-300">⬇️ Inward Gravity Force</span>
+                            </div>
+                            <div class="w-full bg-space-900 h-2.5 rounded-full overflow-hidden border border-slate-800">
+                                <div id="gravityBar" class="bg-gradient-to-r from-blue-600 to-cyan-400 h-full w-[50%] transition-all duration-500"></div>
+                            </div>
+                        </div>
+
+                        <!-- Outward Fusion Pressure Bar -->
+                        <div>
+                            <div class="text-[10px] text-slate-400 font-semibold mb-0.5">
+                                <span class="text-amber-300">⬆️ Outward Fusion Pressure</span>
+                            </div>
+                            <div class="w-full bg-space-900 h-2.5 rounded-full overflow-hidden border border-slate-800">
+                                <div id="pressureBar" class="bg-gradient-to-r from-amber-500 to-rose-500 h-full w-[50%] transition-all duration-500"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- WHAT'S HAPPENING EXPLANATION BOX -->
+                <div class="bg-space-800/60 border border-indigo-900/40 p-3 rounded-xl">
+                    <h3 class="text-xs font-bold text-cyan-300 uppercase tracking-wider flex items-center gap-1.5 mb-1">
+                        <span>🔍</span> Physics Focus: What's Happening?
+                    </h3>
+                    <p id="stageExplanation" class="text-xs text-slate-300 leading-relaxed">
+                        Nuclear fusion converts hydrogen into helium in the core. The enormous heat creates outward radiation pressure that perfectly balances the inward crush of gravity!
+                    </p>
+                </div>
+
+                <!-- NAVIGATION STEP CONTROLS -->
+                <div class="flex items-center gap-2 pt-1">
+                    <button type="button" onclick="navigateStage(-1)" id="prevStageBtn" class="flex-1 py-2.5 px-3 rounded-xl bg-space-800 hover:bg-space-700 border border-slate-700 text-slate-300 font-bold text-xs flex items-center justify-center gap-1 transition disabled:opacity-40">
+                        <span>◀ Prev Stage</span>
+                    </button>
+
+                    <button type="button" onclick="toggleAutoPlay()" id="autoPlayBtn" class="py-2.5 px-3 rounded-xl bg-space-800 hover:bg-space-700 border border-slate-700 text-amber-300 font-bold text-xs flex items-center justify-center gap-1 transition">
+                        <span id="playIcon">▶</span>
+                        <span id="playText" class="hidden sm:inline">Play</span>
+                    </button>
+
+                    <!-- Dedicated Manual Stage Quiz Button -->
+                    <button type="button" onclick="triggerStageQuiz()" id="manualQuizBtn" title="Take stage knowledge check" class="py-2.5 px-3 rounded-xl bg-indigo-900/60 hover:bg-indigo-800 border border-indigo-500/50 text-cyan-300 font-bold text-xs flex items-center justify-center gap-1.5 transition">
+                        <span>🧠</span>
+                        <span class="hidden sm:inline">Stage Quiz</span>
+                    </button>
+
+                    <button type="button" onclick="navigateStage(1)" id="nextStageBtn" class="flex-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-space-900 font-extrabold text-xs tracking-wide glow-btn-cyan flex items-center justify-center gap-1.5 transition">
+                        <span>Next Evolutionary Stage ▶</span>
+                    </button>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- CHECKPOINT QUIZ MODAL -->
+    <div id="quizModal" class="fixed inset-0 bg-space-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel border border-cyan-500/40 rounded-2xl max-w-lg w-full p-5 md:p-6 shadow-2xl flex flex-col gap-4 relative animate-in fade-in zoom-in duration-200">
+            
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">🧠</span>
+                    <div>
+                        <span class="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block">Check For Understanding</span>
+                        <h3 class="text-lg font-bold text-slate-100">Stellar Checkpoint!</h3>
+                    </div>
+                </div>
+                <div class="px-2 py-1 bg-indigo-950 text-indigo-300 rounded border border-indigo-800 font-mono text-xs">
+                    Quick Quiz
+                </div>
+            </div>
+
+            <!-- Question Text -->
+            <p id="quizQuestionText" class="text-sm md:text-base font-semibold text-slate-200 leading-snug">
+                The star ran out of Hydrogen fuel in its core! What will gravity do now?
+            </p>
+
+            <!-- Quiz Options Container -->
+            <div id="quizOptionsContainer" class="space-y-2">
+                <!-- Dynamic quiz options -->
+            </div>
+
+            <!-- Feedback Alert Box -->
+            <div id="quizFeedback" class="p-3 rounded-xl border text-xs font-semibold hidden">
+                <!-- Dynamic feedback text -->
+            </div>
+
+            <!-- Modal Action Buttons -->
+            <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800/80">
+                <button type="button" onclick="closeQuizModal(false)" class="px-3 py-2 rounded-lg bg-space-800 hover:bg-space-700 text-slate-400 text-xs font-bold transition">
+                    Skip Question
+                </button>
+                <button type="button" id="quizContinueBtn" onclick="closeQuizModal(true)" disabled class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-space-900 font-bold text-xs transition disabled:opacity-40 disabled:pointer-events-none">
+                    Close Quiz
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GLOSSARY & FACTS DRAWER -->
+    <div id="glossaryDrawer" class="fixed inset-y-0 right-0 w-full sm:w-96 bg-space-800/95 border-l border-indigo-900/60 backdrop-blur-xl z-50 p-5 shadow-2xl flex flex-col gap-4 transform translate-x-full transition-transform duration-300 ease-in-out">
+        
+        <div class="flex items-center justify-between border-b border-slate-700/60 pb-3">
+            <div class="flex items-center gap-2">
+                <span class="text-xl">📖</span>
+                <h3 class="text-base font-extrabold text-slate-100">Stellar Glossary & Facts</h3>
+            </div>
+            <button type="button" onclick="toggleGlossary()" class="w-8 h-8 rounded-lg bg-space-700 hover:bg-space-600 text-slate-300 flex items-center justify-center font-bold text-sm">
+                ✕
+            </button>
+        </div>
+
+        <!-- Category Filter Buttons (Replaces native text input to eliminate dictation tooltips) -->
+        <div class="flex flex-wrap gap-1.5 border-b border-slate-800 pb-2">
+            <button type="button" onclick="filterGlossaryCategory('all')" id="gCat-all" class="g-cat-btn px-2.5 py-1 rounded-lg bg-cyan-500 text-space-900 text-xs font-bold transition">All</button>
+            <button type="button" onclick="filterGlossaryCategory('physics')" id="gCat-physics" class="g-cat-btn px-2.5 py-1 rounded-lg bg-space-900 text-slate-300 border border-slate-700 text-xs font-semibold hover:border-slate-500 transition">Physics</button>
+            <button type="button" onclick="filterGlossaryCategory('stars')" id="gCat-stars" class="g-cat-btn px-2.5 py-1 rounded-lg bg-space-900 text-slate-300 border border-slate-700 text-xs font-semibold hover:border-slate-500 transition">Stars</button>
+            <button type="button" onclick="filterGlossaryCategory('remnants')" id="gCat-remnants" class="g-cat-btn px-2.5 py-1 rounded-lg bg-space-900 text-slate-300 border border-slate-700 text-xs font-semibold hover:border-slate-500 transition">End Stages</button>
+        </div>
+
+        <!-- Glossary Items List -->
+        <div id="glossaryList" class="flex-1 overflow-y-auto space-y-3 pr-1">
+            <!-- Dynamic Terms -->
+        </div>
+
+        <!-- Fun Fact Footer Card -->
+        <div class="bg-indigo-950/60 border border-indigo-800/60 p-3 rounded-xl">
+            <div class="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+                <span>⭐</span> Cosmic Fun Fact
+            </div>
+            <p id="glossaryFunFact" class="text-xs text-indigo-200 leading-relaxed">
+                Almost all iron in your blood was forged inside the core of a giant star right before it exploded in a Supernova billions of years ago!
+            </p>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT APPLICATION CODE -->
+    <script>
+        /* ===================================================================
+           1. DATA STRUCTURES & STELLAR BRANCH DEFINITIONS
+           =================================================================== */
+
+        // Glossary Definitions
+        const GLOSSARY_TERMS = [
+            {
+                term: "Nuclear Fusion",
+                cat: "physics",
+                def: "The engine of stars! Extremely high heat and pressure force hydrogen atoms to smash together and form helium, releasing enormous amounts of light and heat."
+            },
+            {
+                term: "Hydrostatic Equilibrium",
+                cat: "physics",
+                def: "A perfect tug-of-war balance in a star where inward gravity pulling mass together is evenly matched by outward pressure from fusion heat."
+            },
+            {
+                term: "Protostar",
+                cat: "stars",
+                def: "An early 'baby' stage of a star where collapsing gas gets hotter and hotter, right before nuclear fusion ignites in the core."
+            },
+            {
+                term: "Main Sequence",
+                cat: "stars",
+                def: "The long, stable 'adult' phase of a star's life where it burns hydrogen continuously (like our Sun is doing right now!)."
+            },
+            {
+                term: "Red Giant / Supergiant",
+                cat: "stars",
+                def: "A gigantic late-stage star that swells up like a huge red balloon after core hydrogen runs out and outer gas layers heat up."
+            },
+            {
+                term: "Planetary Nebula",
+                cat: "remnants",
+                def: "A glowing, colorful bubble of gas gently blown out into space by an aging, medium-sized star as it cools."
+            },
+            {
+                term: "Type II Supernova",
+                cat: "remnants",
+                def: "A colossal explosion when a giant star runs out of fuel and its core collapses in less than a second!"
+            },
+            {
+                term: "White Dwarf",
+                cat: "remnants",
+                def: "The leftover, super-dense glowing core of an aging Sun-like star. It's about the size of Earth, but heavy as the Sun!"
+            },
+            {
+                term: "Neutron Star / Pulsar",
+                cat: "remnants",
+                def: "An ultra-dense crushed core leftover from a massive star explosion. A single teaspoon weighs as much as a mountain! Pulsars spin fast and beam light like a lighthouse."
+            },
+            {
+                term: "Black Hole",
+                cat: "remnants",
+                def: "A place in space where gravity is so intense that matter is packed into an infinitely small point. Not even light can escape!"
+            },
+            {
+                term: "Event Horizon",
+                cat: "physics",
+                def: "The point of no return around a Black Hole. Anything that steps past this boundary gets trapped forever."
+            }
+        ];
+
+        // Evolutionary Branching Paths Data
+        // Scale radii are mapped accurately: Sun = 1.0, White Dwarf = 0.01, Red Dwarf = 0.3, Red Giant = 150, Red Supergiant = 600, Red Hypergiant = 1200
+        const MASS_BRANCHES = {
+            low: {
+                name: "Low Mass (Red Dwarf)",
+                rangeText: "0.1 to 0.5 times our Sun's mass",
+                stages: [
+                    {
+                        name: "Stellar Nebula",
+                        title: "Interstellar Gas Cloud",
+                        temp: "Super Cold (-240 °C)",
+                        fuel: "Hydrogen Gas Cloud",
+                        size: "1 to 10 Light-Years wide",
+                        lifespan: "Millions of Years",
+                        spectral: "Gas Cloud",
+                        gravityVal: 20,
+                        pressureVal: 10,
+                        equilibrium: "Gravity slowly pulling gas together",
+                        renderType: "nebula",
+                        visualColor: "#00f3ff",
+                        scaleRadius: 100000,
+                        desc: "A sprawling cloud of cold hydrogen gas and space dust floating in deep space. Gravity slowly pulls particles closer together.",
+                        quiz: {
+                            question: "What primary force brings interstellar dust and gas together to form a protostar?",
+                            options: ["Magnetic Attraction", "Gravity", "Solar Winds", "Static Electricity"],
+                            correct: 1,
+                            explanation: "Correct! Gravity is the fundamental pull that attracts gas particles together across millions of miles."
+                        }
+                    },
+                    {
+                        name: "Protostar",
+                        title: "Collapsing Baby Star",
+                        temp: "1 Million °C (Hot Core)",
+                        fuel: "Gravitational Squeeze",
+                        size: "5 times wider than our Sun",
+                        lifespan: "10 to 50 Million Years",
+                        spectral: "Class M Protostar",
+                        gravityVal: 75,
+                        pressureVal: 35,
+                        equilibrium: "Gravity Winning (Squeezing Core)",
+                        renderType: "protostar",
+                        visualColor: "#ff7700",
+                        scaleRadius: 5,
+                        desc: "As gravity squeezes the gas cloud tight, it builds intense heat! The center gets hotter and hotter, preparing to ignite fusion.",
+                        quiz: {
+                            question: "What critical event must happen inside a protostar's core to officially become a main sequence star?",
+                            options: ["Core turns solid iron", "Nuclear fusion ignites", "Outer gas cools to ice", "Magnetic field flips"],
+                            correct: 1,
+                            explanation: "Spot on! Nuclear fusion igniting hydrogen into helium marks the birth of a true star."
+                        }
+                    },
+                    {
+                        name: "Red Dwarf",
+                        title: "Red Dwarf Star (Main Sequence)",
+                        temp: "3,000 to 4,000 °C",
+                        fuel: "Hydrogen Gas",
+                        size: "0.3 times wider than our Sun",
+                        lifespan: "1 to 10 Trillion Years!",
+                        spectral: "Class M Red Star",
+                        gravityVal: 50,
+                        pressureVal: 50,
+                        equilibrium: "Perfect Balance (Gravity = Pressure)",
+                        renderType: "star",
+                        visualColor: "#ff3300",
+                        scaleRadius: 0.3,
+                        desc: "Low-mass stars burn fuel super slowly because their cores are cooler. They sip fuel thriftily and can shine for trillions of years!",
+                        quiz: {
+                            question: "Why do Red Dwarfs live trillions of years longer than massive blue stars?",
+                            options: [
+                                "They eat cosmic dust from space",
+                                "They burn through hydrogen fuel at an extremely slow, thrifty rate",
+                                "They do not use gravity",
+                                "Their core is made of liquid water"
+                            ],
+                            correct: 1,
+                            explanation: "Exactly! Lower mass means less gravity squeezing the core, so they sip fuel very slowly."
+                        }
+                    },
+                    {
+                        name: "Slow H-Burning",
+                        title: "Slow Fuel-Churning Phase",
+                        temp: "5,000 °C",
+                        fuel: "Hydrogen & Helium",
+                        size: "0.25 times wider than our Sun",
+                        lifespan: "Trillions of Years",
+                        spectral: "Class M/K Star",
+                        gravityVal: 52,
+                        pressureVal: 48,
+                        equilibrium: "Steady Churning Balance",
+                        renderType: "star",
+                        visualColor: "#ff5500",
+                        scaleRadius: 0.25,
+                        desc: "Red Dwarfs recycle fuel continuously! Gas from the surface churns deep down into the core, letting the star burn nearly 100% of its hydrogen."
+                    },
+                    {
+                        name: "Helium White Dwarf",
+                        title: "Cooling Helium Core",
+                        temp: "10,000 °C (Slowly Cooling)",
+                        fuel: "Out of Fuel",
+                        size: "0.01 times wider than our Sun (Earth size)",
+                        lifespan: "Trillions of Years",
+                        spectral: "Helium Core Remnant",
+                        gravityVal: 90,
+                        pressureVal: 90,
+                        equilibrium: "Squeezed Electron Pressure",
+                        renderType: "white_dwarf",
+                        visualColor: "#88ccff",
+                        scaleRadius: 0.01,
+                        desc: "Without enough mass to swell into a Red Giant, the star quietly shrinks down into an Earth-sized sphere that slowly cools forever."
+                    }
+                ]
+            },
+            sun: {
+                name: "Medium Mass (Sun-Like)",
+                rangeText: "0.8 to 2.0 times our Sun's mass",
+                stages: [
+                    {
+                        name: "Stellar Nebula",
+                        title: "Solar Gas Cloud",
+                        temp: "Super Cold (-240 °C)",
+                        fuel: "Hydrogen Gas",
+                        size: "2 Light-Years wide",
+                        lifespan: "Millions of Years",
+                        spectral: "Gas Nebula",
+                        gravityVal: 30,
+                        pressureVal: 15,
+                        equilibrium: "Gravity pulling gas together",
+                        renderType: "nebula",
+                        visualColor: "#00f3ff",
+                        scaleRadius: 100000,
+                        desc: "A vast cloud of gas and space dust collapses under its own gravity, spinning faster and faster as it shrinks.",
+                        quiz: {
+                            question: "Which gas is the most abundant building block in interstellar nebulae?",
+                            options: ["Oxygen", "Carbon Dioxide", "Hydrogen", "Nitrogen"],
+                            correct: 2,
+                            explanation: "Correct! Hydrogen makes up roughly 75% of all normal matter in the universe."
+                        }
+                    },
+                    {
+                        name: "Protostar",
+                        title: "Solar Protostar",
+                        temp: "5 Million °C Core",
+                        fuel: "Gravitational Collapse",
+                        size: "3 times wider than our Sun",
+                        lifespan: "30 Million Years",
+                        spectral: "Class G Protostar",
+                        gravityVal: 70,
+                        pressureVal: 40,
+                        equilibrium: "Gravity squeezing core tight",
+                        renderType: "protostar",
+                        visualColor: "#ff9900",
+                        scaleRadius: 3,
+                        desc: "The core turns super hot and dense. Powerful jets of gas blast outwards from the top and bottom poles as matter packs in.",
+                        quiz: {
+                            question: "As gravity compresses gas tighter and tighter inside a protostar, what happens to core temperature?",
+                            options: ["It drops to absolute zero", "It stays room temperature", "It rises dramatically", "It turns into ice"],
+                            correct: 2,
+                            explanation: "Great job! Compressing gas converts potential energy into intense heat."
+                        }
+                    },
+                    {
+                        name: "Main Sequence",
+                        title: "Yellow Dwarf Star (Main Sequence)",
+                        temp: "15 Million °C Core",
+                        fuel: "Hydrogen → Helium",
+                        size: "1.0 times wider than our Sun (1.4M km)",
+                        lifespan: "10 Billion Years",
+                        spectral: "Yellow Star (Class G2V)",
+                        gravityVal: 50,
+                        pressureVal: 50,
+                        equilibrium: "Perfect Balance (Gravity = Pressure)",
+                        renderType: "star",
+                        visualColor: "#ffcc00",
+                        scaleRadius: 1.0,
+                        desc: "Our Sun's current stage! Inward gravity matches outward fusion pressure. It provides steady heat and light to surrounding planets.",
+                        quiz: {
+                            question: "When a star is in 'Hydrostatic Equilibrium', what two forces are perfectly balanced?",
+                            options: [
+                                "Electricity and Magnetism",
+                                "Inward Gravity & Outward Fusion Pressure",
+                                "Solar Wind & Asteroids",
+                                "Rotation & Darkness"
+                            ],
+                            correct: 1,
+                            explanation: "Perfect! Inward gravity matches outward radiation pressure, keeping the star at a stable size."
+                        }
+                    },
+                    {
+                        name: "Red Giant",
+                        title: "Red Giant Expansion",
+                        temp: "3,000 °C (Cooler Surface)",
+                        fuel: "Helium Core / H Shell",
+                        size: "150 times wider than our Sun!",
+                        lifespan: "1 Billion Years",
+                        spectral: "Giant Red Star",
+                        gravityVal: 40,
+                        pressureVal: 85,
+                        equilibrium: "Pressure Winning (Swelling Outward)",
+                        renderType: "giant",
+                        visualColor: "#ff2200",
+                        scaleRadius: 150,
+                        desc: "Core hydrogen runs out! The center shrinks and gets extra hot, causing outer layers to blow out like a huge red balloon, swallowing inner planets like Mercury and Venus!",
+                        quiz: {
+                            question: "When core hydrogen is exhausted, why do the outer layers expand into a Red Giant?",
+                            options: [
+                                "The star gets struck by a comet",
+                                "Core collapse heats outer hydrogen shells, causing extreme heat pressure that pushes outward",
+                                "Gravity suddenly turns off",
+                                "Space becomes colder"
+                            ],
+                            correct: 1,
+                            explanation: "Correct! The shrinking core gets hotter, forcing the outer gas shell to heat up and push outwards."
+                        }
+                    },
+                    {
+                        name: "Planetary Nebula",
+                        title: "Glowing Gas Shell (Planetary Nebula)",
+                        temp: "100,000 °C Core",
+                        fuel: "Out of Fuel",
+                        size: "1 Light-Year wide cloud",
+                        lifespan: "20,000 Years",
+                        spectral: "Glowing Gas Shell",
+                        gravityVal: 10,
+                        pressureVal: 95,
+                        equilibrium: "Outer layers drifting into space",
+                        renderType: "planetary_nebula",
+                        visualColor: "#00f3ff",
+                        scaleRadius: 50000,
+                        desc: "The dying star gently puffs away its colorful outer atmosphere into space, uncovering the white-hot core hidden inside.",
+                        quiz: {
+                            question: "Are 'Planetary Nebulae' actually made of planets?",
+                            options: [
+                                "Yes, they are made of melted planets",
+                                "No, early astronomers thought they looked like round gas planets, but they are gas clouds from dying stars!",
+                                "Yes, they are alien planetary systems",
+                                "No, they are solid ice crystals"
+                            ],
+                            correct: 1,
+                            explanation: "Spot on! Early telescopes saw round glowing shapes that looked like Uranus or Neptune, but they are glowing star shells!"
+                        }
+                    },
+                    {
+                        name: "White / Black Dwarf",
+                        title: "White Dwarf Remnant",
+                        temp: "100,000 °C → Slowly Cooling",
+                        fuel: "None (Dead Core)",
+                        size: "0.01 times wider than our Sun (Earth size)",
+                        lifespan: "Trillions of Years",
+                        spectral: "White Dwarf Core",
+                        gravityVal: 95,
+                        pressureVal: 95,
+                        equilibrium: "Squeezed Electron Pressure",
+                        renderType: "white_dwarf",
+                        visualColor: "#ffffff",
+                        scaleRadius: 0.01,
+                        desc: "An ultra-dense sphere of packed carbon and oxygen. Over trillions of years, it cools down like a fading ember into a cold, dark Black Dwarf."
+                    }
+                ]
+            },
+            high: {
+                name: "High Mass Star",
+                rangeText: "8 to 20 times our Sun's mass",
+                stages: [
+                    {
+                        name: "Massive Nebula",
+                        title: "Dense High-Mass Cloud",
+                        temp: "Super Cold (-260 °C)",
+                        fuel: "Hydrogen Gas",
+                        size: "5 Light-Years across",
+                        lifespan: "1 Million Years",
+                        spectral: "Dense Star Nursery",
+                        gravityVal: 45,
+                        pressureVal: 10,
+                        equilibrium: "Rapid Gravitational Pull",
+                        renderType: "nebula",
+                        visualColor: "#3b82f6",
+                        scaleRadius: 100000,
+                        desc: "A massive, dense cloud of gas contracts rapidly under strong gravitational pull to birth giant stars.",
+                        quiz: {
+                            question: "How does the lifespan of a high-mass star compare to our Sun?",
+                            options: [
+                                "Much longer (Trillions of years)",
+                                "Much shorter (Millions of years)",
+                                "Exactly the same",
+                                "Massive stars live forever"
+                            ],
+                            correct: 1,
+                            explanation: "Correct! High-mass stars burn through fuel furiously fast, living only millions of years!"
+                        }
+                    },
+                    {
+                        name: "Blue Supergiant",
+                        title: "Blue Supergiant Star",
+                        temp: "30,000 to 50,000 °C (Super Hot!)",
+                        fuel: "Furious Hydrogen Fusion",
+                        size: "15 times wider than our Sun",
+                        lifespan: "10 to 20 Million Years",
+                        spectral: "Hot Blue Star (Class O/B)",
+                        gravityVal: 50,
+                        pressureVal: 50,
+                        equilibrium: "Fierce Balance (High Energy)",
+                        renderType: "star",
+                        visualColor: "#00bfff",
+                        scaleRadius: 15,
+                        desc: "Glowing electric blue and blazing hot! It burns core fuel violently fast and blasts out strong ultraviolet radiation.",
+                        quiz: {
+                            question: "Why do massive stars shine electric blue instead of red or yellow?",
+                            options: [
+                                "They are covered in oceans",
+                                "Their surface temperatures are insanely hot (>30,000 °C)",
+                                "They reflect earth's oceans",
+                                "Blue light is colder"
+                            ],
+                            correct: 1,
+                            explanation: "You got it! Hotter stars radiate higher energy blue light photons."
+                        }
+                    },
+                    {
+                        name: "Red Supergiant",
+                        title: "Red Supergiant Monster",
+                        temp: "3,500 °C Surface",
+                        fuel: "Carbon, Oxygen, Silicon, Iron",
+                        size: "600 times wider than our Sun!",
+                        lifespan: "1 Million Years",
+                        spectral: "Giant Red Supergiant",
+                        gravityVal: 35,
+                        pressureVal: 85,
+                        equilibrium: "Unstable Layered Burning",
+                        renderType: "giant",
+                        visualColor: "#ff0044",
+                        scaleRadius: 600,
+                        desc: "Swells into a super monster like Betelgeuse! It fuses heavier and heavier elements layer-by-layer like an onion until an Iron core forms.",
+                        quiz: {
+                            question: "What ultimate element forms in the core that STOPS generating nuclear fusion energy?",
+                            options: ["Gold", "Iron", "Helium", "Uranium"],
+                            correct: 1,
+                            explanation: "Spot on! Fusing Iron absorbs energy instead of releasing it, triggering immediate core collapse!"
+                        }
+                    },
+                    {
+                        name: "Supernova",
+                        title: "Supernova Explosion!",
+                        temp: "100 Billion °C Blast",
+                        fuel: "Core Collapse Shockwave",
+                        size: "Expanding light-years across",
+                        lifespan: "Few Months (Cloud lasts 100k Yrs)",
+                        spectral: "Supernova Blast",
+                        gravityVal: 100,
+                        pressureVal: 100,
+                        equilibrium: "Cataclysmic Explosion",
+                        renderType: "supernova",
+                        visualColor: "#ff007f",
+                        scaleRadius: 50000,
+                        desc: "The iron core collapses in less than a second! Outer layers bounce off the core in a colossal blast that outshines an entire galaxy!",
+                        quiz: {
+                            question: "Where were heavy elements like Gold, Silver, and Iodine in our universe forged?",
+                            options: [
+                                "Inside alien laboratories",
+                                "In the extreme heat of Supernova explosions!",
+                                "On planetary beaches",
+                                "Inside the Moon"
+                            ],
+                            correct: 1,
+                            explanation: "Awesome! Supernova blasts forge almost all elements heavier than Iron in cosmic explosions!"
+                        }
+                    },
+                    {
+                        name: "Neutron Star / Pulsar",
+                        title: "Spinning Pulsar Core",
+                        temp: "1 Million °C",
+                        fuel: "Dead Crushed Core",
+                        size: "20 km across (Size of a small city!)",
+                        lifespan: "Billions of Years",
+                        spectral: "Neutron Core",
+                        gravityVal: 99,
+                        pressureVal: 99,
+                        equilibrium: "Crushed Neutron Pressure",
+                        renderType: "neutron_star",
+                        visualColor: "#a855f7",
+                        scaleRadius: 0.000015,
+                        desc: "Protons and electrons are squeezed together into pure neutrons! So dense that one sugar-cube-sized piece weighs as much as a mountain. Rapidly spinning ones beam light like cosmic lighthouses."
+                    }
+                ]
+            },
+            supermassive: {
+                name: "Supermassive Star",
+                rangeText: "Over 20 times our Sun's mass",
+                stages: [
+                    {
+                        name: "Hyper-Nebula",
+                        title: "Gigantic Nebula Nursery",
+                        temp: "Super Cold (-260 °C)",
+                        fuel: "Hydrogen Gas",
+                        size: "10 Light-Years across",
+                        lifespan: "500,000 Years",
+                        spectral: "Giant Molecular Cloud",
+                        gravityVal: 60,
+                        pressureVal: 10,
+                        equilibrium: "Extreme Collapse",
+                        renderType: "nebula",
+                        visualColor: "#a855f7",
+                        scaleRadius: 100000,
+                        desc: "An immense cloud of interstellar gas collapses under massive gravity to birth a monster hypergiant star."
+                    },
+                    {
+                        name: "Blue Hypergiant",
+                        title: "Blue Hypergiant Star",
+                        temp: "40,000 to 50,000 °C",
+                        fuel: "Violent Hydrogen Fusion",
+                        size: "35 times wider than our Sun",
+                        lifespan: "3 to 5 Million Years",
+                        spectral: "Extreme Blue Hypergiant",
+                        gravityVal: 50,
+                        pressureVal: 50,
+                        equilibrium: "Pushed to Extreme Radiation Limit",
+                        renderType: "star",
+                        visualColor: "#00f3ff",
+                        scaleRadius: 35,
+                        desc: "Reaches the extreme limit of star stability! Outward light pressure is so fierce it literally pushes gas off its surface into space.",
+                        quiz: {
+                            question: "What happens when a hypergiant star hits the 'Eddington Limit'?",
+                            options: [
+                                "It turns into ice",
+                                "Outward radiation pressure is so high it tears the star's outer layers into space!",
+                                "It stops spinning",
+                                "It melts surrounding planets"
+                            ],
+                            correct: 1,
+                            explanation: "Spot on! Intense light pressure literally blows the star's outer skin off!"
+                        }
+                    },
+                    {
+                        name: "Red Hypergiant",
+                        title: "Red Hypergiant Colossus",
+                        temp: "3,000 °C Surface",
+                        fuel: "Heavy Element Fusion",
+                        size: "1,200 times wider than our Sun!",
+                        lifespan: "100,000 Years",
+                        spectral: "Red Hypergiant Monster",
+                        gravityVal: 30,
+                        pressureVal: 90,
+                        equilibrium: "Extremely Unstable Outward Swell",
+                        renderType: "giant",
+                        visualColor: "#ff0033",
+                        scaleRadius: 1200,
+                        desc: "If placed at the center of our solar system, its outer edge would extend past the orbit of Jupiter!",
+                        quiz: {
+                            question: "If a Red Hypergiant like UY Scuti were put at the center of our solar system, what would happen?",
+                            options: [
+                                "It would fit inside Mercury's orbit",
+                                "It would engulf Mercury, Venus, Earth, Mars, and Jupiter!",
+                                "It would fit inside our Moon",
+                                "It would shrink instantly"
+                            ],
+                            correct: 1,
+                            explanation: "Mind-blowing right? They are so vast that light takes over 7 hours to circle their equator!"
+                        }
+                    },
+                    {
+                        name: "Hypernova",
+                        title: "Hypernova Blast & Core Collapse",
+                        temp: "Over 100 Billion °C",
+                        fuel: "Instant Gravity Collapse",
+                        size: "Expanding across light-days",
+                        lifespan: "Seconds to Hours",
+                        spectral: "Gamma-Ray Burst",
+                        gravityVal: 100,
+                        pressureVal: 100,
+                        equilibrium: "Total Core Collapse",
+                        renderType: "supernova",
+                        visualColor: "#a855f7",
+                        scaleRadius: 50000,
+                        desc: "A super-charged hypernova blast that shoots out twin beams of energy called Gamma-Ray Bursts across deep space!",
+                        quiz: {
+                            question: "When a core over 3 Solar Masses collapses, can neutron pressure stop gravity?",
+                            options: [
+                                "Yes, neutron pressure holds it",
+                                "No, gravity wins completely, crushing the core into an infinite singularity!",
+                                "Gravity gets repelled",
+                                "The core becomes liquid nitrogen"
+                            ],
+                            correct: 1,
+                            explanation: "Exactly! Gravity overrides all known physical forces, collapsing matter into a Black Hole."
+                        }
+                    },
+                    {
+                        name: "Black Hole",
+                        title: "Stellar Black Hole",
+                        temp: "Absolute Zero Boundary",
+                        fuel: "None (Gravitational Singularity)",
+                        size: "30 km across (City-sized trap)",
+                        lifespan: "Forever (Trillions of Years)",
+                        spectral: "Gravitational Singularity",
+                        gravityVal: 100,
+                        pressureVal: 0,
+                        equilibrium: "100% Gravity Trap (No escape!)",
+                        renderType: "black_hole",
+                        visualColor: "#000000",
+                        scaleRadius: 0.00002,
+                        desc: "A place in space where gravity is so strong that mass gets crushed down to an infinitely tiny point. Not even light can escape its boundary!"
+                    }
+                ]
+            }
+        };
+
+        /* ===================================================================
+           2. GLOBAL APPLICATION STATE
+           =================================================================== */
+        let state = {
+            currentCategory: 'sun', // 'low', 'sun', 'high', 'supermassive'
+            currentMass: 1.0,
+            density: 'high', // 'low', 'high'
+            currentStageIdx: 0,
+            isSimulating: false,
+            autoPlay: false
+        };
+
+        // Canvas & Rendering Globals
+        let canvas, ctx;
+        let animFrameId = null;
+        let particles = [];
+        let tick = 0;
+        let autoPlayTimer = null;
+        let isDraggingSlider = false;
+
+        /* ===================================================================
+           3. CORE APPLICATION & UI CONTROLLERS
+           =================================================================== */
+
+        // Glossary Renderer
+        function renderGlossary(filterCat = 'all') {
+            const listEl = document.getElementById('glossaryList');
+            if (!listEl) return;
+            listEl.innerHTML = '';
+
+            const filtered = filterCat === 'all' 
+                ? GLOSSARY_TERMS 
+                : GLOSSARY_TERMS.filter(item => item.cat === filterCat);
+
+            filtered.forEach(item => {
+                const termCard = document.createElement('div');
+                termCard.className = "bg-space-900/80 border border-slate-800 p-3 rounded-xl";
+                termCard.innerHTML = `
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-bold text-cyan-300">${item.term}</span>
+                        <span class="text-[9px] uppercase px-1.5 py-0.5 rounded bg-space-800 text-slate-400 border border-slate-700">${item.cat}</span>
+                    </div>
+                    <p class="text-xs text-slate-300 leading-relaxed">${item.def}</p>
+                `;
+                listEl.appendChild(termCard);
+            });
+        }
+
+        function filterGlossaryCategory(catKey) {
+            document.querySelectorAll('.g-cat-btn').forEach(btn => {
+                btn.className = "g-cat-btn px-2.5 py-1 rounded-lg bg-space-900 text-slate-300 border border-slate-700 text-xs font-semibold hover:border-slate-500 transition";
+            });
+            const activeBtn = document.getElementById(`gCat-${catKey}`);
+            if (activeBtn) {
+                activeBtn.className = "g-cat-btn px-2.5 py-1 rounded-lg bg-cyan-500 text-space-900 text-xs font-bold transition";
+            }
+            renderGlossary(catKey);
+        }
+
+        function toggleGlossary() {
+            const drawer = document.getElementById('glossaryDrawer');
+            if (drawer) drawer.classList.toggle('translate-x-full');
+        }
+
+        // Density Setting Toggle
+        function setDensity(type) {
+            state.density = type;
+            const lowBtn = document.getElementById('densityBtn-low');
+            const highBtn = document.getElementById('densityBtn-high');
+            const badgeVal = document.getElementById('densityBadgeValue');
+
+            if (type === 'low') {
+                if (lowBtn) lowBtn.className = "px-3 py-2 rounded-xl border border-cyan-500 bg-cyan-950/40 text-xs font-semibold text-cyan-300 flex items-center justify-center gap-1.5 transition cursor-pointer select-none";
+                if (highBtn) highBtn.className = "px-3 py-2 rounded-xl border border-slate-700 bg-space-800 text-xs font-semibold text-slate-300 hover:border-slate-500 flex items-center justify-center gap-1.5 transition cursor-pointer select-none";
+                if (badgeVal) badgeVal.textContent = "Low (Diffuse Cloud)";
+            } else {
+                if (highBtn) highBtn.className = "px-3 py-2 rounded-xl border border-cyan-500 bg-cyan-950/40 text-xs font-semibold text-cyan-300 flex items-center justify-center gap-1.5 transition cursor-pointer select-none";
+                if (lowBtn) lowBtn.className = "px-3 py-2 rounded-xl border border-slate-700 bg-space-800 text-xs font-semibold text-slate-300 hover:border-slate-500 flex items-center justify-center gap-1.5 transition cursor-pointer select-none";
+                if (badgeVal) badgeVal.textContent = "High (Dense Cloud)";
+            }
+            initParticles();
+            if (state.isSimulating) {
+                updateStageUI();
+            }
+        }
+
+        // Ignite Stellar Core
+        function igniteStellarCore() {
+            state.isSimulating = true;
+            state.currentStageIdx = 0;
+
+            document.getElementById('setupCard').classList.add('hidden');
+            document.getElementById('activeDashboard').classList.remove('hidden');
+            document.getElementById('scaleOverlay').classList.remove('hidden');
+
+            renderTimelineNodes();
+            updateStageUI();
+        }
+
+        // Reset Simulation
+        function resetSimulation() {
+            state.isSimulating = false;
+            state.autoPlay = false;
+            state.currentStageIdx = 0;
+
+            if (autoPlayTimer) {
+                clearInterval(autoPlayTimer);
+                autoPlayTimer = null;
+            }
+
+            const playText = document.getElementById('playText');
+            const playIcon = document.getElementById('playIcon');
+            if (playText) playText.textContent = "Play";
+            if (playIcon) playIcon.textContent = "▶";
+
+            document.getElementById('setupCard').classList.remove('hidden');
+            document.getElementById('activeDashboard').classList.add('hidden');
+            document.getElementById('scaleOverlay').classList.add('hidden');
+
+            selectMassPreset(state.currentCategory);
+        }
+
+        // Particle System Init
+        function initParticles() {
+            particles = [];
+            const particleCount = state.density === 'high' ? 80 : 40;
+            for (let i = 0; i < particleCount; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 50 + Math.random() * 150;
+                particles.push({
+                    x: Math.cos(angle) * dist,
+                    y: Math.sin(angle) * dist,
+                    vx: (Math.random() - 0.5) * 0.5,
+                    vy: (Math.random() - 0.5) * 0.5,
+                    radius: 1 + Math.random() * 2.5,
+                    color: Math.random() > 0.5 ? '#00f3ff' : '#a855f7',
+                    alpha: 0.3 + Math.random() * 0.7
+                });
+            }
+        }
+
+        function getCurrentStage() {
+            const branch = MASS_BRANCHES[state.currentCategory];
+            if (!branch || !branch.stages) return null;
+            return branch.stages[state.currentStageIdx] || null;
+        }
+
+        // Timeline Node Navigation
+        function renderTimelineNodes() {
+            const container = document.getElementById('timelineNodes');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const branch = MASS_BRANCHES[state.currentCategory];
+            if (!branch) return;
+
+            branch.stages.forEach((stg, idx) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.onclick = () => jumpToStage(idx);
+                btn.textContent = `${idx + 1}. ${stg.name}`;
+                btn.className = "timeline-node-btn px-3 py-1.5 rounded-lg bg-space-800 text-slate-500 border border-slate-800 font-medium text-xs shrink-0 transition cursor-pointer select-none";
+                container.appendChild(btn);
+            });
+        }
+
+        function jumpToStage(idx) {
+            const branch = MASS_BRANCHES[state.currentCategory];
+            if (idx < 0 || idx >= branch.stages.length) return;
+            state.currentStageIdx = idx;
+            updateStageUI();
+        }
+
+        function navigateStage(dir) {
+            const branch = MASS_BRANCHES[state.currentCategory];
+            const newIdx = state.currentStageIdx + dir;
+
+            if (newIdx < 0) return;
+
+            if (newIdx >= branch.stages.length) {
+                resetSimulation();
+                return;
+            }
+
+            state.currentStageIdx = newIdx;
+            updateStageUI();
+        }
+
+        function toggleAutoPlay() {
+            state.autoPlay = !state.autoPlay;
+            const playText = document.getElementById('playText');
+            const playIcon = document.getElementById('playIcon');
+
+            if (state.autoPlay) {
+                if (playText) playText.textContent = "Pause";
+                if (playIcon) playIcon.textContent = "⏸";
+                autoPlayTimer = setInterval(() => {
+                    const branch = MASS_BRANCHES[state.currentCategory];
+                    if (state.currentStageIdx < branch.stages.length - 1) {
+                        navigateStage(1);
+                    } else {
+                        toggleAutoPlay();
+                    }
+                }, 4000);
+            } else {
+                if (playText) playText.textContent = "Play";
+                if (playIcon) playIcon.textContent = "▶";
+                if (autoPlayTimer) {
+                    clearInterval(autoPlayTimer);
+                    autoPlayTimer = null;
+                }
+            }
+        }
+
+        // Quiz Modal Controls
+        function openQuizModal(quizObj) {
+            const modal = document.getElementById('quizModal');
+            const qText = document.getElementById('quizQuestionText');
+            const optContainer = document.getElementById('quizOptionsContainer');
+            const feedback = document.getElementById('quizFeedback');
+            const continueBtn = document.getElementById('quizContinueBtn');
+
+            if (!modal || !qText || !optContainer) return;
+
+            qText.textContent = quizObj.question;
+            optContainer.innerHTML = '';
+            feedback.className = "p-3 rounded-xl border text-xs font-semibold hidden";
+            continueBtn.disabled = true;
+
+            quizObj.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = "w-full p-3 rounded-xl border border-slate-700 bg-space-800 hover:border-cyan-500 text-left text-xs font-semibold text-slate-200 transition cursor-pointer select-none";
+                btn.textContent = opt;
+                btn.onclick = () => selectQuizOption(idx, quizObj.correct, quizObj.explanation);
+                optContainer.appendChild(btn);
+            });
+
+            modal.classList.remove('hidden');
+        }
+
+        function selectQuizOption(selectedIdx, correctIdx, explanation) {
+            const optContainer = document.getElementById('quizOptionsContainer');
+            const feedback = document.getElementById('quizFeedback');
+            const continueBtn = document.getElementById('quizContinueBtn');
+
+            const buttons = optContainer.querySelectorAll('button');
+            buttons.forEach((b, idx) => {
+                b.disabled = true;
+                if (idx === correctIdx) {
+                    b.className = "w-full p-3 rounded-xl border border-emerald-500 bg-emerald-950/60 text-left text-xs font-bold text-emerald-300 pointer-events-none select-none";
+                } else if (idx === selectedIdx) {
+                    b.className = "w-full p-3 rounded-xl border border-rose-500 bg-rose-950/60 text-left text-xs font-bold text-rose-300 pointer-events-none select-none";
+                } else {
+                    b.className = "w-full p-3 rounded-xl border border-slate-800 bg-space-900/50 text-left text-xs text-slate-500 pointer-events-none select-none";
+                }
+            });
+
+            feedback.classList.remove('hidden');
+            if (selectedIdx === correctIdx) {
+                feedback.className = "p-3 rounded-xl border border-emerald-500/50 bg-emerald-950/50 text-emerald-300 text-xs font-semibold";
+                feedback.textContent = `✨ Correct! ${explanation}`;
+            } else {
+                feedback.className = "p-3 rounded-xl border border-amber-500/50 bg-amber-950/50 text-amber-300 text-xs font-semibold";
+                feedback.textContent = `💡 Not quite. ${explanation}`;
+            }
+
+            continueBtn.disabled = false;
+        }
+
+        function closeQuizModal(shouldAdvance) {
+            const modal = document.getElementById('quizModal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function triggerStageQuiz() {
+            const stage = getCurrentStage();
+            if (stage && stage.quiz) {
+                openQuizModal(stage.quiz);
+            } else {
+                openQuizModal({
+                    question: "How does mass influence a star's destiny and evolution?",
+                    options: [
+                        "More mass means stronger gravity, higher core heat, and a faster lifespan!",
+                        "Mass has no effect on star lifespans",
+                        "More mass makes stars cool down into ice planets",
+                        "Mass only changes the star's name"
+                    ],
+                    correct: 0,
+                    explanation: "Great job! More mass creates stronger gravitational squeeze, burning fuel at insane rates!"
+                });
+            }
+        }
+
+        /* ===================================================================
+           4. SETUP PHASE & CUSTOM ARIA SLIDER CONTROLLER
+           =================================================================== */
+        function selectMassPreset(categoryKey) {
+            state.currentCategory = categoryKey;
+
+            document.querySelectorAll('.mass-preset-btn').forEach(btn => {
+                btn.classList.remove('border-amber-500', 'ring-2', 'ring-amber-500/40', 'bg-amber-950/30');
+                btn.classList.add('border-slate-700', 'bg-space-800/80');
+            });
+
+            const selectedBtn = document.getElementById(`massBtn-${categoryKey}`);
+            if (selectedBtn) {
+                selectedBtn.classList.remove('border-slate-700', 'bg-space-800/80');
+                selectedBtn.classList.add('border-amber-500', 'ring-2', 'ring-amber-500/40', 'bg-amber-950/30');
+            }
+
+            if (categoryKey === 'low') state.currentMass = 0.3;
+            if (categoryKey === 'sun') state.currentMass = 1.0;
+            if (categoryKey === 'high') state.currentMass = 12.0;
+            if (categoryKey === 'supermassive') state.currentMass = 25.0;
+
+            updateCustomSliderUI(state.currentMass);
+            updateMassSliderLabel();
+            initParticles();
+        }
+
+        function onMassSliderChange(val, skipSliderUIUpdate = false) {
+            state.currentMass = parseFloat(val);
+            updateMassSliderLabel();
+            if (!skipSliderUIUpdate) {
+                updateCustomSliderUI(state.currentMass);
+            }
+
+            if (state.currentMass < 0.6 && state.currentCategory !== 'low') selectMassPreset('low');
+            else if (state.currentMass >= 0.6 && state.currentMass <= 3.0 && state.currentCategory !== 'sun') selectMassPreset('sun');
+            else if (state.currentMass > 3.0 && state.currentMass <= 20.0 && state.currentCategory !== 'high') selectMassPreset('high');
+            else if (state.currentMass > 20.0 && state.currentCategory !== 'supermassive') selectMassPreset('supermassive');
+        }
+
+        function updateMassSliderLabel() {
+            document.getElementById('sliderMassDisplay').textContent = `${state.currentMass.toFixed(1)}x Sun's Mass`;
+        }
+
+        function updateCustomSliderUI(massVal) {
+            const min = 0.1, max = 30.0;
+            const clamped = Math.max(min, Math.min(max, massVal));
+            const percent = (clamped - min) / (max - min);
+            const thumb = document.getElementById('customSliderThumb');
+            const fill = document.getElementById('customSliderFill');
+            const track = document.getElementById('customSliderTrack');
+            if (thumb && fill && track) {
+                thumb.style.left = `${percent * 100}%`;
+                fill.style.width = `${percent * 100}%`;
+                track.setAttribute('aria-valuenow', clamped.toFixed(1));
+            }
+        }
+
+        function initCustomSlider() {
+            const track = document.getElementById('customSliderTrack');
+            if (!track) return;
+
+            function handleMove(e) {
+                if (!isDraggingSlider) return;
+                const rect = track.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                let offsetX = clientX - rect.left;
+                let percent = offsetX / rect.width;
+                percent = Math.max(0, Math.min(1, percent));
+                
+                const min = 0.1, max = 30.0;
+                let rawVal = min + percent * (max - min);
+                let val = Math.round(rawVal * 10) / 10;
+                
+                state.currentMass = val;
+                updateCustomSliderUI(val);
+                onMassSliderChange(val, true);
+            }
+
+            function handleStart(e) {
+                isDraggingSlider = true;
+                handleMove(e);
+            }
+
+            function handleEnd() {
+                isDraggingSlider = false;
+            }
+
+            track.addEventListener('mousedown', handleStart);
+            track.addEventListener('touchstart', handleStart, { passive: true });
+            window.addEventListener('mousemove', handleMove);
+            window.addEventListener('touchmove', handleMove, { passive: true });
+            window.addEventListener('mouseup', handleEnd);
+            window.addEventListener('touchend', handleEnd);
+
+            track.addEventListener('keydown', (e) => {
+                let step = 0.1;
+                if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+                    let val = Math.min(30.0, Math.round((state.currentMass + step) * 10) / 10);
+                    state.currentMass = val;
+                    updateCustomSliderUI(val);
+                    onMassSliderChange(val);
+                } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+                    let val = Math.max(0.1, Math.round((state.currentMass - step) * 10) / 10);
+                    state.currentMass = val;
+                    updateCustomSliderUI(val);
+                    onMassSliderChange(val);
+                } else if (e.key === 'Home') {
+                    state.currentMass = 0.1;
+                    updateCustomSliderUI(0.1);
+                    onMassSliderChange(0.1);
+                } else if (e.key === 'End') {
+                    state.currentMass = 30.0;
+                    updateCustomSliderUI(30.0);
+                    onMassSliderChange(30.0);
+                }
+            });
+        }
+
+        /* ===================================================================
+           5. DYNAMIC STAGE UI SYNCHRONIZATION (ZERO DATA MISMATCHES)
+           =================================================================== */
+        function updateStageUI() {
+            const branch = MASS_BRANCHES[state.currentCategory];
+            const stages = branch.stages;
+            const stage = stages[state.currentStageIdx];
+
+            document.getElementById('massBadgeText').textContent = `${branch.name} • ${stage.name}`;
+            document.getElementById('stageSpectralBadge').textContent = stage.spectral;
+            
+            let lifespanText = stage.lifespan;
+            if (stage.renderType === 'protostar' && state.density === 'low') {
+                lifespanText = "60 Million Years (Slower Collapse)";
+            }
+            document.getElementById('stageDurationBadge').textContent = lifespanText;
+            document.getElementById('stageTitle').textContent = stage.title;
+
+            document.getElementById('statTemp').textContent = stage.temp;
+            document.getElementById('statFuel').textContent = stage.fuel;
+            document.getElementById('statSize').textContent = stage.size;
+            document.getElementById('statLifespan').textContent = lifespanText;
+
+            // Update Gravity vs Outward Pressure Bars (Visual lengths)
+            document.getElementById('gravityBar').style.width = `${stage.gravityVal}%`;
+            document.getElementById('pressureBar').style.width = `${stage.pressureVal}%`;
+            document.getElementById('equilibriumStatusText').textContent = stage.equilibrium;
+
+            let explanation = stage.desc;
+            if (stage.renderType === 'nebula' || stage.renderType === 'protostar') {
+                if (state.density === 'low') {
+                    explanation += " Because the nebula is Low Density (Diffuse), particles are spread further apart, making gravitational collapse take twice as long!";
+                } else {
+                    explanation += " High Density cloud particles are packed tightly, accelerating gravitational collapse and core heating!";
+                }
+            }
+            document.getElementById('stageExplanation').textContent = explanation;
+
+            // STRICT DATA SYNCHRONIZATION FOR SIZE COMPARISON
+            // Badge text & description text utilize identical computed properties
+            const radius = stage.scaleRadius;
+            const renderType = stage.renderType;
+            let percent = 35;
+            let analogy = "";
+            let badgeText = "";
+
+            if (renderType === 'nebula' || renderType === 'planetary_nebula' || renderType === 'supernova') {
+                percent = 100;
+                badgeText = "Gas Cloud (Light-Years)";
+                if (renderType === 'planetary_nebula') {
+                    analogy = "Glowing gas shell stretching trillions of kilometers into deep space!";
+                } else if (renderType === 'supernova') {
+                    analogy = "Colossal explosive shockwave expanding across entire stellar systems!";
+                } else {
+                    analogy = "Vast interstellar gas cloud stretching light-years across space!";
+                }
+            } else if (radius <= 0.0001) {
+                percent = 5;
+                const kmSize = stage.title.includes('Neutron') ? "20 km" : "30 km";
+                badgeText = `${kmSize} across (City Size)`;
+                analogy = `City-sized (~${kmSize} across)! Crushed so dense that a single teaspoon weighs as much as a mountain!`;
+            } else if (radius <= 0.02) {
+                percent = 15;
+                badgeText = "0.01x Sun's Width";
+                analogy = "Earth-sized (~12,000 km across)! About 0.01x our Sun's width. Over 1,000,000 Earths could fit inside our Sun!";
+            } else if (radius < 0.8) {
+                percent = 22;
+                badgeText = `${radius}x Sun's Width`;
+                analogy = `About ${radius}x our Sun's width! Small for a star, but still large enough to fit over 30 Earths across.`;
+            } else if (radius <= 1.5) {
+                percent = 35;
+                badgeText = `${radius.toFixed(1)}x Sun's Width`;
+                analogy = `About ${radius.toFixed(1)}x our Sun's width (~1.4 Million km)! 109 Earths could line up across its center.`;
+            } else if (radius <= 50) {
+                percent = 55;
+                badgeText = `${radius}x Sun's Width`;
+                analogy = `About ${radius}x wider than our Sun! Spans over ${(radius * 1.39).toFixed(1)} million kilometers across.`;
+            } else if (radius <= 200) {
+                percent = 72;
+                const auDist = (radius * 0.00465).toFixed(1);
+                badgeText = `${radius}x Sun's Width`;
+                analogy = `About ${radius}x wider than our Sun! Reaches ${auDist} AU out, swallowing Mercury & Venus!`;
+            } else if (radius <= 800) {
+                percent = 85;
+                const auDist = (radius * 0.00465).toFixed(1);
+                badgeText = `${radius}x Sun's Width`;
+                analogy = `About ${radius}x wider than our Sun! Reaches ${auDist} AU out, stretching past Mars into the asteroid belt!`;
+            } else {
+                percent = 95;
+                const auDist = (radius * 0.00465).toFixed(1);
+                const formattedRad = radius.toLocaleString();
+                badgeText = `${formattedRad}x Sun's Width`;
+                analogy = `About ${formattedRad}x wider than our Sun! Reaches ${auDist} AU out, stretching past Jupiter's orbit!`;
+            }
+
+            document.getElementById('scaleRatioText').textContent = badgeText;
+            document.getElementById('scaleAnalogyText').textContent = analogy;
+            document.getElementById('starScaleBar').style.width = `${percent}%`;
+            document.getElementById('scalePin').style.left = `${percent}%`;
+
+            // Update Timeline Node Pills
+            document.querySelectorAll('.timeline-node-btn').forEach((btn, idx) => {
+                btn.className = "timeline-node-btn px-3 py-1.5 rounded-lg font-medium text-xs shrink-0 transition cursor-pointer select-none ";
+                if (idx === state.currentStageIdx) {
+                    btn.className += "bg-cyan-500 text-space-900 font-bold shadow-lg shadow-cyan-500/30 ring-2 ring-cyan-400";
+                } else if (idx < state.currentStageIdx) {
+                    btn.className += "bg-emerald-950/60 text-emerald-300 border border-emerald-800";
+                } else {
+                    btn.className += "bg-space-800 text-slate-500 border border-slate-800 hover:text-slate-300";
+                }
+            });
+
+            // Update Navigation Button States
+            const prevBtn = document.getElementById('prevStageBtn');
+            const nextBtn = document.getElementById('nextStageBtn');
+            const tracker = document.getElementById('timelineStageTracker');
+
+            if (tracker) {
+                tracker.textContent = `Stage ${state.currentStageIdx + 1} of ${stages.length}`;
+            }
+
+            if (prevBtn) {
+                prevBtn.disabled = state.currentStageIdx === 0;
+            }
+
+            if (nextBtn) {
+                if (state.currentStageIdx === stages.length - 1) {
+                    nextBtn.innerHTML = `<span>Start Over 🔄</span>`;
+                    nextBtn.className = "flex-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-space-900 font-extrabold text-xs tracking-wide glow-btn-cyan flex items-center justify-center gap-1.5 transition";
+                } else {
+                    nextBtn.innerHTML = `<span>Next Evolutionary Stage ▶</span>`;
+                    nextBtn.className = "flex-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-space-900 font-extrabold text-xs tracking-wide glow-btn-cyan flex items-center justify-center gap-1.5 transition";
+                }
+            }
+        }
+
+        function handleCanvasHover(e) {
+            const tooltip = document.getElementById('canvasTooltip');
+            if (!tooltip || !canvas) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const dist = Math.hypot(mouseX - centerX, mouseY - centerY);
+
+            const stage = getCurrentStage();
+            if (!stage) return;
+
+            if (dist < 120) {
+                tooltip.style.left = `${mouseX + 15}px`;
+                tooltip.style.top = `${mouseY + 15}px`;
+                tooltip.style.opacity = '1';
+                tooltip.textContent = `✨ ${stage.title} (${stage.temp})`;
+            } else {
+                tooltip.style.opacity = '0';
+            }
+        }
+
+        /* ===================================================================
+           6. CANVAS ANIMATION ENGINE
+           =================================================================== */
+        function animate() {
+            tick++;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            drawStarfieldBackground();
+
+            if (!state.isSimulating) {
+                drawNebulaSetupVisual();
+            } else {
+                const stage = getCurrentStage();
+                if (stage) {
+                    drawStageVisual(stage);
+                }
+            }
+
+            animFrameId = requestAnimationFrame(animate);
+        }
+
+        function drawStarfieldBackground() {
+            ctx.fillStyle = '#060814';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            for (let i = 0; i < 35; i++) {
+                const bx = (i * 137.5 + tick * 0.05) % canvas.width;
+                const by = (i * 293.1) % canvas.height;
+                const bSize = (i % 3 === 0) ? 1.5 : 1;
+                ctx.beginPath();
+                ctx.arc(bx, by, bSize, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawNebulaSetupVisual() {
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+
+            particles.forEach((p) => {
+                const speedMult = state.density === 'high' ? 0.015 : 0.007;
+                p.x += (0 - p.x) * speedMult + p.vx;
+                p.y += (0 - p.y) * speedMult + p.vy;
+
+                if (Math.hypot(p.x, p.y) < 10) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = 120 + Math.random() * 80;
+                    p.x = Math.cos(angle) * dist;
+                    p.y = Math.sin(angle) * dist;
+                }
+
+                ctx.save();
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = state.currentCategory === 'supermassive' ? '#a855f7' :
+                                state.currentCategory === 'high' ? '#3b82f6' :
+                                state.currentCategory === 'low' ? '#ff3366' : '#00f3ff';
+                ctx.beginPath();
+                ctx.arc(cx + p.x, cy + p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+
+            const pulse = Math.sin(tick * 0.05) * 4;
+            const glow = ctx.createRadialGradient(cx, cy, 5, cx, cy, 60 + pulse);
+            glow.addColorStop(0, 'rgba(255, 215, 0, 0.9)');
+            glow.addColorStop(0.5, 'rgba(255, 100, 0, 0.4)');
+            glow.addColorStop(1, 'rgba(6, 8, 20, 0)');
+
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(cx, cy, 65 + pulse, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawStageVisual(stage) {
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            const type = stage.renderType;
+            const baseColor = stage.visualColor || '#ffcc00';
+
+            ctx.save();
+
+            if (type === 'nebula') {
+                drawNebulaSetupVisual();
+            } else if (type === 'protostar') {
+                const coreR = 25 + Math.sin(tick * 0.08) * 2;
+
+                ctx.fillStyle = 'rgba(255, 200, 100, 0.6)';
+                ctx.beginPath();
+                ctx.moveTo(cx - 8, cy); ctx.lineTo(cx - 30, cy - 180);
+                ctx.lineTo(cx + 30, cy - 180); ctx.lineTo(cx + 8, cy);
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.moveTo(cx - 8, cy); ctx.lineTo(cx - 30, cy + 180);
+                ctx.lineTo(cx + 30, cy + 180); ctx.lineTo(cx + 8, cy);
+                ctx.fill();
+
+                ctx.strokeStyle = 'rgba(255, 140, 0, 0.5)';
+                ctx.lineWidth = 12;
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, 110, 35, tick * 0.02, 0, Math.PI * 2);
+                ctx.stroke();
+
+                const glow = ctx.createRadialGradient(cx, cy, 2, cx, cy, coreR * 2);
+                glow.addColorStop(0, '#ffffff');
+                glow.addColorStop(0.4, baseColor);
+                glow.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = glow;
+                ctx.beginPath();
+                ctx.arc(cx, cy, coreR * 2, 0, Math.PI * 2);
+                ctx.fill();
+
+            } else if (type === 'star' || type === 'giant') {
+                let radius = type === 'giant' ? 85 + Math.sin(tick * 0.04) * 4 : 50 + Math.sin(tick * 0.03) * 2;
+
+                // Corona Glow
+                const corona = ctx.createRadialGradient(cx, cy, radius * 0.7, cx, cy, radius * 1.8);
+                corona.addColorStop(0, baseColor);
+                corona.addColorStop(0.6, baseColor + '44');
+                corona.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = corona;
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius * 1.8, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Main Star Spherical Body
+                const coreGrad = ctx.createRadialGradient(cx - radius * 0.25, cy - radius * 0.25, 2, cx, cy, radius);
+                coreGrad.addColorStop(0, '#ffffff');
+                coreGrad.addColorStop(0.3, baseColor);
+                coreGrad.addColorStop(1, '#550000');
+                ctx.fillStyle = coreGrad;
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // ORGANIC FIERY SOLAR PROMINENCES (Coronal Plasma Arches)
+                // Arches anchor cleanly onto the surface and curve outward radially
+                const loopCount = type === 'giant' ? 5 : 3;
+                for (let i = 0; i < loopCount; i++) {
+                    const baseAngle = tick * 0.008 + (i * Math.PI * 2 / loopCount);
+                    const loopSpan = 0.25; // Radial span along star circumference
+                    const startAngle = baseAngle - loopSpan / 2;
+                    const endAngle = baseAngle + loopSpan / 2;
+
+                    // Surface anchor points
+                    const x1 = cx + Math.cos(startAngle) * (radius - 1);
+                    const y1 = cy + Math.sin(startAngle) * (radius - 1);
+                    const x2 = cx + Math.cos(endAngle) * (radius - 1);
+                    const y2 = cy + Math.sin(endAngle) * (radius - 1);
+
+                    // Outward control point extending radially from center with organic pulsation
+                    const loopHeight = (type === 'giant' ? 26 : 16) + Math.sin(tick * 0.06 + i * 1.5) * 6;
+                    const ctrlDist = radius + loopHeight;
+                    const ctrlX = cx + Math.cos(baseAngle) * ctrlDist;
+                    const ctrlY = cy + Math.sin(baseAngle) * ctrlDist;
+
+                    ctx.save();
+                    // Glowing plasma halo
+                    ctx.shadowColor = baseColor;
+                    ctx.shadowBlur = 12;
+                    ctx.strokeStyle = 'rgba(255, 220, 150, 0.85)';
+                    ctx.lineWidth = type === 'giant' ? 3.5 : 2.5;
+                    ctx.lineCap = 'round';
+
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.quadraticCurveTo(ctrlX, ctrlY, x2, y2);
+                    ctx.stroke();
+
+                    // Hot inner core filament
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1.2;
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.quadraticCurveTo(ctrlX, ctrlY, x2, y2);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+            } else if (type === 'planetary_nebula') {
+                const expansion = (tick * 0.5) % 80;
+                ctx.strokeStyle = `rgba(0, 243, 255, ${1 - expansion / 80})`;
+                ctx.lineWidth = 15;
+                ctx.beginPath();
+                ctx.arc(cx, cy, 40 + expansion, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.strokeStyle = `rgba(168, 85, 247, ${1 - expansion / 80})`;
+                ctx.lineWidth = 10;
+                ctx.beginPath();
+                ctx.arc(cx, cy, 25 + expansion * 0.8, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = '#00f3ff';
+                ctx.shadowBlur = 15;
+                ctx.beginPath();
+                ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+            } else if (type === 'white_dwarf') {
+                const pulse = Math.sin(tick * 0.1) * 2;
+                const glow = ctx.createRadialGradient(cx, cy, 2, cx, cy, 30 + pulse);
+                glow.addColorStop(0, '#ffffff');
+                glow.addColorStop(0.3, '#88ccff');
+                glow.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = glow;
+                ctx.beginPath();
+                ctx.arc(cx, cy, 35 + pulse, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(cx - 30, cy); ctx.lineTo(cx + 30, cy);
+                ctx.moveTo(cx, cy - 30); ctx.lineTo(cx, cy + 30);
+                ctx.stroke();
+
+            } else if (type === 'supernova') {
+                const blastR = (tick * 3) % 180;
+                const alpha = Math.max(0, 1 - blastR / 180);
+
+                ctx.save();
+                ctx.globalAlpha = alpha;
+
+                const blastGlow = ctx.createRadialGradient(cx, cy, 5, cx, cy, blastR);
+                blastGlow.addColorStop(0, '#ffffff');
+                blastGlow.addColorStop(0.3, '#ff007f');
+                blastGlow.addColorStop(0.7, '#a855f7');
+                blastGlow.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = blastGlow;
+                ctx.beginPath();
+                ctx.arc(cx, cy, blastR, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = '#ffd700';
+                ctx.lineWidth = 3;
+                for (let i = 0; i < 12; i++) {
+                    const a = (i * Math.PI / 6) + tick * 0.05;
+                    ctx.beginPath();
+                    ctx.moveTo(cx, cy);
+                    ctx.lineTo(cx + Math.cos(a) * blastR * 1.2, cy + Math.sin(a) * blastR * 1.2);
+                    ctx.stroke();
+                }
+                ctx.restore();
+
+            } else if (type === 'neutron_star') {
+                const beamAngle = tick * 0.15;
+
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(beamAngle);
+
+                const beamGlow = ctx.createLinearGradient(0, -180, 0, 180);
+                beamGlow.addColorStop(0, 'rgba(0, 243, 255, 0.9)');
+                beamGlow.addColorStop(0.4, 'rgba(168, 85, 247, 0.2)');
+                beamGlow.addColorStop(0.5, 'rgba(255,255,255,0)');
+                beamGlow.addColorStop(0.6, 'rgba(168, 85, 247, 0.2)');
+                beamGlow.addColorStop(1, 'rgba(0, 243, 255, 0.9)');
+
+                ctx.fillStyle = beamGlow;
+                ctx.beginPath();
+                ctx.moveTo(-10, -180); ctx.lineTo(10, -180);
+                ctx.lineTo(3, 0); ctx.lineTo(-3, 0);
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.moveTo(-10, 180); ctx.lineTo(10, 180);
+                ctx.lineTo(3, 0); ctx.lineTo(-3, 0);
+                ctx.fill();
+
+                ctx.restore();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = '#a855f7';
+                ctx.shadowBlur = 20;
+                ctx.beginPath();
+                ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+            } else if (type === 'black_hole') {
+                ctx.strokeStyle = 'rgba(0, 243, 255, 0.6)';
+                ctx.lineWidth = 6;
+                ctx.beginPath();
+                ctx.arc(cx, cy, 65, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(-0.3);
+                const diskGlow = ctx.createRadialGradient(0, 0, 30, 0, 0, 90);
+                diskGlow.addColorStop(0, '#ff7700');
+                diskGlow.addColorStop(0.5, '#ffd700');
+                diskGlow.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = diskGlow;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 95, 25, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                ctx.fillStyle = '#000000';
+                ctx.beginPath();
+                ctx.arc(cx, cy, 35, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.shadowColor = '#00f3ff';
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.arc(cx, cy, 35, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            }
+
+            ctx.restore();
+        }
+
+        /* ===================================================================
+           7. INITIALIZATION & RESIZE LISTENERS
+           =================================================================== */
+        window.addEventListener('load', () => {
+            canvas = document.getElementById('starCanvas');
+            ctx = canvas.getContext('2d');
+
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            // Render Initial Glossary List
+            renderGlossary();
+
+            // Setup Custom ARIA Mass Slider & Initial Preset
+            initCustomSlider();
+            selectMassPreset('sun');
+            initParticles();
+
+            // Start Canvas Animation Loop
+            animate();
+
+            // Canvas Mouse Inspection
+            canvas.addEventListener('mousemove', handleCanvasHover);
+        });
+
+        function resizeCanvas() {
+            const container = document.getElementById('canvasContainer');
+            if (!container) return;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+    </script>
+</body>
+</html>
